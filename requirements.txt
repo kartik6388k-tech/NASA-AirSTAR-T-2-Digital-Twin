@@ -1,0 +1,19 @@
+ Third-party dependencies for the T-2 short-period simulation project.
+#
+# Derived by scanning every `import` / `from ... import` line across
+# aerodynamics.py, aircraft.py, atmosphere.py, conversion.py,
+# flight_dynamics.py, propulsion.py, config.yaml loading,
+# validate_short_period.py, simulation/simulator.py, and
+# tests/test_simulator.py. Everything else imported (math, sys, csv,
+# pathlib, dataclasses, typing, enum, types, collections.abc, __future__)
+# is Python standard library and needs no entry here.
+ 
+# Used to load config.yaml (models/aerodynamics.py's AerodynamicsDatabase.from_config,
+# models/propulsion.py's PropulsionModel.from_config, models/aircraft.py's
+# Aircraft.from_config, scripts/validate_short_period.py, and the
+# simulation/simulator.py __main__ demo).
+PyYAML>=6.0
+ 
+# Required to run tests/test_simulator.py.
+pytest>=7.0
+ 

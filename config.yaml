@@ -1,0 +1,670 @@
+# =============================================================================
+# NASA AirSTAR T-2 / 5.5% Generic Transport Model
+# Propulsion configuration (frozen propulsion section)
+# Configuration identity:
+#   Aircraft: NASA AirSTAR T-2 (GTM, 5.5% dynamically scaled)
+#   Engines:  x2 JetCat P70 turbines
+#   Sources:  NASA AirSTAR briefings, GTM flight-test/system-ID papers, and AIAA 2015-2704
+# =============================================================================
+
+configuration_identity:
+  aircraft: "NASA AirSTAR T-2"
+  program: "AirSTAR (Airborne Subscale Transport Aircraft Research)"
+  scale: "5.5 percent dynamically scaled Generic Transport Model"
+  propulsion_architecture: "twin independent turbine engines"
+  engine_manufacturer: "JetCat"
+  engine_model: "P70"
+  engine_variant: "NOT_FOUND_DO_NOT_ASSUME"
+  configuration_note: "Use only for T-2 GTM configuration; do not mix with other GTM variants or unrelated turbofan datasets."
+
+
+# -----------------------------------------------------------------------------
+# AIRCRAFT — ACTIVE PHYSICAL CONFIGURATION
+# This is the ONLY authoritative model-facing location for the active Aircraft
+# geometry and mass/inertia values consumed by models/aircraft.py.
+#
+# Active physical baseline:
+#   NASA/TM-2017-219795, Table 1 ("T-2 and GTM geometry and nominal mass properties")
+#
+# Flight 41 / Flight 15 mass and Iyy values below remain case-specific reference
+# data and MUST NOT overwrite this active aircraft baseline.
+# -----------------------------------------------------------------------------
+aircraft:
+  active_baseline_id: "NASA_T2_NOMINAL_2017"
+
+  identification:
+    name: "NASA AirSTAR T-2"
+    configuration: "T-2 5.5% dynamically scaled Generic Transport Model"
+    scale: 0.055
+    aircraft_type: "GTM (Generic Transport Model)"
+
+  geometry:
+    # Model-facing SI values derived once from NASA/TM-2017-219795 Table 1.
+    wing_span_m: 2.08788
+    wing_area_m2: 0.548127936
+    mac_m: 0.280416
+
+  mass_properties:
+    # Model-facing SI values derived once from NASA/TM-2017-219795 Table 1.
+    mass_kg: 23.934000817018433
+    Ixx_kgm2: 1.5998651790310523
+    Iyy_kgm2: 6.304553459741012
+    Izz_kgm2: 7.565464151689214
+    Ixz_kgm2: 0.2847217691495941
+
+    # Ixy/Iyz are not supplied by the cited Table 1 and are intentionally absent.
+    # CG is intentionally absent until the NASA model-frame/body-frame reference
+    # convention is locked for this project.
+
+  source_provenance:
+    document: "Position Corrections for Airspeed and Flow Angle Measurements on Fixed-Wing Aircraft"
+    author: "Jared A. Grauer"
+    year: 2017
+    report: "NASA/TM-2017-219795"
+    nasa_document_id: "20180000023"
+    table: "Table 1 - T-2 and GTM geometry and nominal mass properties"
+    source_values_nasa:
+      wing_span_ft: 6.85
+      mean_aerodynamic_chord_ft: 0.92
+      wing_reference_area_ft2: 5.90
+      mass_slug: 1.64
+      Ixx_slug_ft2: 1.18
+      Iyy_slug_ft2: 4.65
+      Izz_slug_ft2: 5.58
+      Ixz_slug_ft2: 0.21
+      cg_model_frame_in:
+        x_cm: 56.4
+        y_cm: 0.00
+        z_cm: 11.5
+    cg_activation_status: "NOT_ACTIVE_REFERENCE_FRAME_CONVENTION_NOT_LOCKED"
+    inertia_product_status: "SOURCE_REPORTED_IXZ_SIGN_PRESERVED; 6DOF_MATRIX_SIGN_CONVENTION_MUST_BE_LOCKED_BEFORE_USE"
+    note: "NASA states the tabulated positions are in the model frame, not the body frame. CG values are retained only in provenance and are not loaded into Aircraft.mass_properties."
+
+# -----------------------------------------------------------------------------
+# ACTIVE MODEL SELECTION
+# Separate the physical aircraft baseline from a flight-specific aerodynamic
+# linearization case. The case mass/Iyy remain reference properties only.
+# -----------------------------------------------------------------------------
+active_model_selection:
+  physical_aircraft_baseline_id: "NASA_T2_NOMINAL_2017"
+  aerodynamic_linearization_case: "T-2 Flight 41"
+  aerodynamic_condition_key: "flight_41"
+  use_flight_case_mass_as_aircraft_mass: false
+  initial_aircraft_state_status: "NOT_SET"
+  note: "Flight 41 is the currently selected local longitudinal perturbation model. No complete NED/body trim state is invented here; aircraft.initial_conditions remains absent until a trim/state definition is explicitly established."
+  dynamic_pressure_semantics: "ISA_BASED_NOMINAL_NOT_MEASURED_FLIGHT_TEST_DYNAMIC_PRESSURE"
+
+# -----------------------------------------------------------------------------
+# NASA_VERIFIED_PHYSICAL_DATA
+# Directly documented hardware facts, measured channels, data-acquisition facts,
+# and context-only physical values. Model structures are kept in a separate
+# NASA_VERIFIED_MODEL_STRUCTURE section below.
+# -----------------------------------------------------------------------------
+nasa_verified_physical_data:
+
+
+  active_aircraft_baseline_source:
+    status: "NASA_VERIFIED_REFERENCE_DATA"
+    active_config_path: "aircraft"
+    source:
+      document: "Position Corrections for Airspeed and Flow Angle Measurements on Fixed-Wing Aircraft"
+      author: "Jared A. Grauer"
+      year: 2017
+      report: "NASA/TM-2017-219795"
+      nasa_document_id: "20180000023"
+      table: "Table 1 - T-2 and GTM geometry and nominal mass properties"
+    note: "The model-facing SI values live only under aircraft:. Flight-specific 2015 reference masses remain under simulation_reference_data and are not promoted to the active aircraft mass."
+
+
+  engines:
+    number_of_engines: 2
+    engine_manufacturer: "JetCat"
+    engine_model: "P70"
+    engine_type: "turbine engine"
+    engine_type_note: "NASA AirSTAR briefing terminology is 'Independent Turbine Engines (JetCat P70s, 16 lbs thrust)'. Do not classify the P70 hardware beyond terminology explicitly supported by the cited source."
+    engine_variant: "NOT_FOUND_DO_NOT_ASSUME"
+    fuel_type: "NOT_FOUND_DO_NOT_ASSUME"
+    provenance:
+      engine_identity: "NASA source"
+      engine_type: "NASA source terminology"
+
+  thrust_rating_per_engine:
+    value_lbf: 16
+    unit: "lbf"
+    value_semantics: "RATED_HEADLINE_VALUE_NOT_CONSTANT_FLIGHT_THRUST"
+    note: "NASA reports 16 lbf per engine as a rated/headline thrust value. No flight condition or test point is specified; do not treat this as constant thrust for the flight model."
+    source:
+      document: "AirSTAR: Simulation and Reduced-Scale Flight Test Facility"
+      authors: "D. Cox, K. Cunningham (NASA Langley); G. Brian (DSTO)"
+      year: 2010
+      location: "Slide 11, 'TEST AIRCRAFT – GENERIC TRANSPORT MODEL (GTM) – T2' bullet: 'Independent Turbine Engines (JetCat P70s, 16 lbs thrust)'"
+    second_source:
+      document: "Flight Test Evaluation of Adaptive Control with AirSTAR: Techniques and Capabilities"
+      authors: "A. Murch, K. Cunningham (NASA Langley)"
+      year: 2009
+      location: "Slide 6, 'TEST AIRCRAFT – GTM T2' bullet: 'JetCat P70s (16 lbs thrust each)'"
+    provenance:
+      thrust_rating: "NASA source"
+
+  aircraft_weights_context_only:
+    takeoff_weight_lb: 57
+    landing_weight_lb: 48
+    status: "CONTEXT_ONLY"
+    note: "These values come from NASA GTM-T2 briefing slides and remain CONTEXT_ONLY. The 2015 flight-test paper reports nominal model/test masses of 1.639 slug for Flight 41 and 1.646 slug for Flight 15, so these weight figures must not be merged into those cases until exact configuration consistency is established."
+    source:
+      document: "Flight Test Evaluation of Adaptive Control with AirSTAR: Techniques and Capabilities"
+      authors: "A. Murch, K. Cunningham (NASA Langley)"
+      year: 2009
+      location: "Slide 6, 'TEST AIRCRAFT – GENERIC TRANSPORT MODEL (GTM) – T2' bullets: 'Takeoff weight: 57 lbs', 'Landing weight: 48 lbs'"
+    second_source:
+      document: "AirSTAR: Simulation and Reduced-Scale Flight Test Facility"
+      authors: "D. Cox, K. Cunningham (NASA Langley); G. Brian (DSTO)"
+      year: 2010
+      location: "Slide 11, same bullets for takeoff/landing weight"
+
+  measured_channels:
+    status: "NASA_VERIFIED"
+    source_scope: "T-2 flight-test instrumentation described in AIAA 2015-2704"
+    channels:
+      - body_axis_translational_accelerations
+      - angular_rates
+      - estimated_euler_angles
+      - differential_gps_position
+      - differential_gps_velocity
+      - angle_of_attack
+      - sideslip
+      - static_pressure
+      - dynamic_pressure
+      - fuel_flow_rate
+      - control_surface_deflections
+    source:
+      document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+      authors: "Jared A. Grauer; Eugene A. Morelli"
+      year: 2015
+      aiaa_paper: "AIAA 2015-2704"
+      nasa_document_id: "20160006007"
+
+  engine_telemetry_available:
+    rpm_measured: true
+    pump_voltage_measured: true
+    throttle_position_measured: true
+    note: "Earlier NASA documents state that engine data (RPM, pump voltage, etc.) and throttle position were measured and recorded. Do not infer a native per-channel sample rate unless explicitly documented."
+    source:
+      document: "AirSTAR: Simulation and Reduced-Scale Flight Test Facility"
+      authors: "D. Cox, K. Cunningham (NASA Langley); G. Brian (DSTO)"
+      year: 2010
+      location: "Slide 11, 'Instrumentation' bullet: 'Engine data (RPM, pump voltage, etc.), Air temp, Battery monitors.'"
+    second_source:
+      document: "Methodologies for Adaptive Flight Envelope Estimation and Protection"
+      authors: "L. Tang et al. (Impact Technologies, NASA Langley)"
+      year: 2009
+      location: "Section VII (Simulation Results)"
+
+  flight_data_collection:
+    telemetry_rate_Hz: 200
+    analysis_modeling_rate_Hz: 50
+    processing: "data telemetered at 200 Hz and downsampled to 50 Hz for analysis and modeling"
+    status: "NASA_VERIFIED"
+    applies_to: "documented T-2 flight-test data stream in AIAA 2015-2704"
+    does_not_imply: "every individual sensor or engine telemetry channel had a native digitization/sample rate of exactly 200 Hz or 50 Hz"
+    note: "Use 50 Hz as the documented analysis/modeling stream rate. Keep native sensor/channel sampling distinct unless a source explicitly establishes it."
+    source:
+      document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+      authors: "Jared A. Grauer; Eugene A. Morelli"
+      year: 2015
+      aiaa_paper: "AIAA 2015-2704"
+      nasa_document_id: "20160006007"
+
+  signal_conditioning:
+    anti_aliasing_filter:
+      type: "first_order"
+      cutoff_frequency_Hz: 16
+      status: "NASA_VERIFIED"
+      application: "applied before measurement digitization"
+      source:
+        document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+        authors: "Jared A. Grauer; Eugene A. Morelli"
+        year: 2015
+        aiaa_paper: "AIAA 2015-2704"
+        nasa_document_id: "20160006007"
+
+# -----------------------------------------------------------------------------
+# DERIVED_DATA
+# Quantities derived from NASA-supported values using exact arithmetic or unit
+# conversion. These are not independent NASA measurements.
+# -----------------------------------------------------------------------------
+derived_data:
+
+  thrust_total_headline:
+    value_lbf: 32
+    status: "DERIVED_FROM_NASA_RATED_HEADLINE_THRUST"
+    calculation: "2 * nasa_verified_physical_data.thrust_rating_per_engine.value_lbf"
+    note: "Derived total headline thrust only; not a directly verified standalone measurement and not a constant flight-model thrust value."
+
+  thrust_headline_si:
+    thrust_per_engine_N: 71.171545844168   # 16 lbf * 4.4482216152605
+    thrust_total_N: 142.343091688336       # 32 lbf * 4.4482216152605
+    status: "DERIVED_FROM_RATED_HEADLINE_THRUST"
+    conversion_note: "1 lbf = 4.4482216152605 N (exact definition-based conversion)"
+
+  aircraft_weights_si_context_only:
+    takeoff_weight_N: 253.5486      # 57 lbf * 4.4482216152605
+    landing_weight_N: 213.5146      # 48 lbf * 4.4482216152605
+    status: "CONTEXT_ONLY"
+    conversion_note: "1 lbf = 4.4482216152605 N"
+
+  aircraft_mass_context_only:
+    takeoff_mass_slug: 1.7707       # 57 lbf / 32.174 ft/s^2
+    landing_mass_slug: 1.4925       # 48 lbf / 32.174 ft/s^2
+    takeoff_mass_kg: 25.855         # 57 lbm * 0.45359237
+    landing_mass_kg: 21.772         # 48 lbm * 0.45359237
+    status: "CONTEXT_ONLY"
+    g_ft_s2: 32.174
+    g_m_s2: 9.80665
+    mass_note: "Derived from context-only weight values; do not use automatically in the physics model until exact 2017 T-2 configuration consistency is established."
+
+  thrust_to_weight_headline_context_only:
+    tow_takeoff: 0.5614             # 32 / 57
+    tow_landing: 0.6667             # 32 / 48
+    status: "CONTEXT_ONLY"
+    tow_note: "Based on derived headline total thrust and context-only weights; not a flight-condition-specific thrust-to-weight ratio."
+
+# -----------------------------------------------------------------------------
+# NASA_VERIFIED_MODEL_STRUCTURE
+# NASA-documented model architectures and modeling methodology. Known model
+# structure is separated from still-unpublished numerical engine equations and
+# unidentified time constants.
+# -----------------------------------------------------------------------------
+nasa_verified_model_structure:
+
+  propulsion_model_references:
+
+    propulsion_system_identification_description:
+      architecture: "engine_RPM -> engine_model -> thrust"
+      description: "Measured engine speed in RPM was used as input to an engine model to compute thrust. The engine model was identified from ground-test data, with adjustments for ram drag identified from flight data."
+      primary_input: "engine_speed_rpm"
+      output: "thrust_force"
+      ram_drag_treatment: "adjustments identified from flight data"
+      status: "NASA_VERIFIED_MODEL_METHODOLOGY"
+      source:
+        document: "Methodologies for Adaptive Flight Envelope Estimation and Protection"
+        authors: "L. Tang et al. (Impact Technologies, NASA Langley)"
+        year: 2009
+        location: "Section VII (Simulation Results)"
+
+    gtm_nonlinear_simulation_description:
+      architecture: "pilot_throttle -> first_order_engine_dynamics -> thrust"
+      engine_description: "two turbojet engines"
+      engine_description_scope: "terminology used for the GTM nonlinear simulation in the 2015 paper; do not automatically use this phrase as a hardware classification for the JetCat P70 beyond that source context"
+      status: "NASA_VERIFIED_MODEL_STRUCTURE"
+      source:
+        document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+        authors: "Jared A. Grauer; Eugene A. Morelli"
+        year: 2015
+        aiaa_paper: "AIAA 2015-2704"
+        nasa_document_id: "20160006007"
+
+    interpretation_note: "These are separate NASA-documented modeling descriptions serving different purposes. Keep the RPM-based system-identification thrust model and the throttle-to-thrust first-order nonlinear-simulation engine dynamics as separate references; do not force them into one asserted NASA throttle -> RPM -> thrust architecture."
+
+  engine_dynamics:
+    structure: "first_order_lag_throttle_to_thrust"
+    time_constant_sec: "NOT_FOUND_DO_NOT_ASSUME"
+    source_status: "MODEL_STRUCTURE_VERIFIED_NASA"
+    note: "NASA GTM simulation uses first-order lag dynamics from pilot throttle input to thrust. The numerical time constant is not supplied here and must not be assumed."
+    source:
+      document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+      authors: "Jared A. Grauer; Eugene A. Morelli"
+      year: 2015
+      aiaa_paper: "AIAA 2015-2704"
+      nasa_document_id: "20160006007"
+
+  throttle_usage:
+    throttle_position_recorded: true
+    throttle_used_in_control_architecture: true
+    throttle_to_rpm_dynamics: "NOT_FOUND_DO_NOT_ASSUME"
+    note_throttle_recorded: "NASA states throttle position was measured and recorded."
+    note_verified_dynamics: "The 2015 GTM nonlinear simulation verifies a first-order throttle-to-thrust dynamic structure."
+    note_unknown_dynamics: "This does not establish a T-2 throttle-to-RPM dynamic model or time constant; throttle-to-RPM dynamics remain unknown."
+    source_throttle_recorded:
+      document: "Methodologies for Adaptive Flight Envelope Estimation and Protection"
+      authors: "L. Tang et al."
+      year: 2009
+      location: "Section VII (Simulation Results)"
+    source_throttle_to_thrust_structure:
+      document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+      authors: "Jared A. Grauer; Eugene A. Morelli"
+      year: 2015
+      aiaa_paper: "AIAA 2015-2704"
+      nasa_document_id: "20160006007"
+
+  numerical_engine_thrust_equation:
+    public_equation_form: "NOT_FOUND_DO_NOT_ASSUME"
+    dynamic_structure_known: true
+    known_dynamic_structure: "first_order_lag_throttle_to_thrust"
+    note: "The dynamic structure is documented, but the explicit numerical engine/thrust equation, coefficients, and time constant are not supplied here. Do not conflate a known model structure with a known numerical equation."
+
+  ram_drag_modeling_statement:
+    nasa_supported_statement: "adjustments for ram drag were identified from flight data"
+    explicit_mathematical_form: "NOT_FOUND_DO_NOT_ASSUME"
+    note: "NASA documents the identification treatment, not the project-defined function ram_drag = f(airspeed, engine_rpm)."
+
+  asymmetry_and_engine_out:
+    left_right_thrust_data: "NOT_FOUND_DO_NOT_ASSUME"
+    engine_out_test_data: "NOT_FOUND_DO_NOT_ASSUME"
+    asymmetry_note: "No T-2-specific left/right propulsion dataset or asymmetric-thrust/engine-out dataset is established in the cited sources used here."
+
+  external_dataset_compatibility:
+    cmapss_turbofan_datasets:
+      applicable: false
+      reason: "CMAPSS / turbofan degradation datasets are for large turbofan engines under different operating conditions and are not configuration-matched to JetCat P70 on AirSTAR T-2."
+      recommendation: "Do not use CMAPSS data as a direct proxy for T-2 propulsion parameters."
+
+# -----------------------------------------------------------------------------
+# FLIGHT_TEST_IDENTIFIED_DATA
+# Parameters estimated from specific T-2 flight-test datasets. These are not
+# universal exact constants; retain the flight association and uncertainty.
+# -----------------------------------------------------------------------------
+flight_test_identified_data:
+
+  source:
+    document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+    authors: "Jared A. Grauer; Eugene A. Morelli"
+    year: 2015
+    aiaa_paper: "AIAA 2015-2704"
+    nasa_document_id: "20160006007"
+    source_url: "https://ntrs.nasa.gov/citations/20160006007"
+    section: "Flight-test application / tables"
+    table: "Table 3 - parameter estimates and uncertainties identified from T-2 flight data using filter error"
+
+  aerodynamic_derivatives:
+    estimation_method: "filter_error"
+    uncertainty_representation: "estimate +/- 1-sigma standard uncertainty as tabulated in the paper"
+    parameterization_note: "Nondimensional aerodynamic derivatives estimated about the nominal condition for each flight. Do not promote either flight's values to configuration-independent exact constants."
+
+    flight_41:
+      flight_id: "T-2 Flight 41"
+      condition_reference: "simulation_reference_data.reference_cases.t2_flight_41"
+      turbulence_context: "light-to-moderate turbulence"
+      estimates:
+        CL_alpha:
+          value: 3.933
+          uncertainty_1sigma: 0.073
+        CL_q:
+          value: 15.11
+          uncertainty_1sigma: 5.319
+        CL_delta_e:
+          value: 0.143
+          uncertainty_1sigma: 0.092
+        Cm_alpha:
+          value: -1.667
+          uncertainty_1sigma: 0.047
+        Cm_q:
+          value: -46.36
+          uncertainty_1sigma: 3.712
+        Cm_delta_e:
+          value: -1.676
+          uncertainty_1sigma: 0.070
+
+    flight_15:
+      flight_id: "T-2 Flight 15"
+      condition_reference: "simulation_reference_data.reference_cases.t2_flight_15"
+      turbulence_context: "severe turbulence"
+      estimates:
+        CL_alpha:
+          value: 3.828
+          uncertainty_1sigma: 0.036
+        CL_q:
+          value: 16.39
+          uncertainty_1sigma: 2.719
+        CL_delta_e:
+          value: 0.125
+          uncertainty_1sigma: 0.054
+        Cm_alpha:
+          value: -1.437
+          uncertainty_1sigma: 0.025
+        Cm_q:
+          value: -44.76
+          uncertainty_1sigma: 2.169
+        Cm_delta_e:
+          value: -1.722
+          uncertainty_1sigma: 0.040
+
+# -----------------------------------------------------------------------------
+# SIMULATION_REFERENCE_DATA
+# Nominal geometry, mass properties, and operating conditions tabulated in the
+# 2015 paper for the GTM simulation reference and the two T-2 flight cases.
+# These are case-specific reference data, not globally merged aircraft constants.
+# -----------------------------------------------------------------------------
+simulation_reference_data:
+
+  source:
+    document: "A New Formulation of the Filter-Error Method for Aerodynamic Parameter Estimation in Turbulence"
+    authors: "Jared A. Grauer; Eugene A. Morelli"
+    year: 2015
+    aiaa_paper: "AIAA 2015-2704"
+    nasa_document_id: "20160006007"
+    source_url: "https://ntrs.nasa.gov/citations/20160006007"
+    section: "Tables"
+    tables:
+      mass_properties: "Table 1"
+      nominal_flight_conditions: "Table 2"
+
+  reference_cases:
+
+    gtm_reference:
+      flight_id: "GTM reference"
+      status: "NASA_PAPER_SIMULATION_REFERENCE"
+      reference_values_si:
+        mean_aerodynamic_chord_m: 0.278892
+        wing_reference_area_m2: 0.54831374208
+        mass_kg: 23.91940691866
+        pitch_moment_of_inertia_kg_m2: 6.305909278896451
+        nominal_flight_condition:
+          airspeed_m_s: 42.88536
+          angle_of_attack_rad: 0.06981317007977318
+          altitude_m: 373.6848
+          throttle: 0.320
+      source_values_nasa:
+        mean_aerodynamic_chord_ft: 0.915
+        wing_reference_area_ft2: 5.902
+        mass_slug: 1.639
+        pitch_moment_of_inertia_slug_ft2: 4.651
+        nominal_flight_condition:
+          airspeed_ft_s: 140.7
+          angle_of_attack_deg: 4.000
+          altitude_ft: 1226
+          throttle: 0.320
+
+    t2_flight_41:
+      flight_id: "T-2 Flight 41"
+      status: "NASA_PAPER_FLIGHT_TEST_REFERENCE"
+      reference_values_si:
+        mean_aerodynamic_chord_m: 0.278892
+        wing_reference_area_m2: 0.54831374208
+        mass_kg: 23.91940691866
+        pitch_moment_of_inertia_kg_m2: 6.305909278896451
+        nominal_flight_condition:
+          airspeed_m_s: 42.39768
+          angle_of_attack_rad: 0.07115707360380881
+          altitude_m: 373.9896
+          throttle: 0.290
+      source_values_nasa:
+        mean_aerodynamic_chord_ft: 0.915
+        wing_reference_area_ft2: 5.902
+        mass_slug: 1.639
+        pitch_moment_of_inertia_slug_ft2: 4.651
+        nominal_flight_condition:
+          airspeed_ft_s: 139.1
+          angle_of_attack_deg: 4.077
+          altitude_ft: 1227
+          throttle: 0.290
+
+    t2_flight_15:
+      flight_id: "T-2 Flight 15"
+      status: "NASA_PAPER_FLIGHT_TEST_REFERENCE"
+      reference_values_si:
+        mean_aerodynamic_chord_m: 0.278892
+        wing_reference_area_m2: 0.54831374208
+        mass_kg: 24.02156423924
+        pitch_moment_of_inertia_kg_m2: 6.307265096845042
+        nominal_flight_condition:
+          airspeed_m_s: 41.4528
+          angle_of_attack_rad: 0.06794566778013925
+          altitude_m: 447.1416
+          throttle: 0.315
+      source_values_nasa:
+        mean_aerodynamic_chord_ft: 0.915
+        wing_reference_area_ft2: 5.902
+        mass_slug: 1.646
+        pitch_moment_of_inertia_slug_ft2: 4.652
+        nominal_flight_condition:
+          airspeed_ft_s: 136.0
+          angle_of_attack_deg: 3.893
+          altitude_ft: 1467
+          throttle: 0.315
+
+  model_data_units_note: "aerodynamics.py consumes only reference_values_si. source_values_nasa preserves the paper's original units for provenance and traceability."
+
+  configuration_consistency_note: "The 1.639-1.646 slug case masses are retained as paper-specific model/test reference values. They do not validate or replace the separate 57 lbf takeoff / 48 lbf landing briefing values, which remain CONTEXT_ONLY pending exact configuration matching."
+
+  geometry_reconciliation:
+    status: "SOURCE_VARIATION"
+    active_aircraft_source: "NASA/TM-2017-219795"
+    flight_test_model_source: "AIAA 2015-2704"
+    active_aircraft_geometry:
+      mac_m: 0.280416
+      wing_area_m2: 0.548127936
+      source_ft_values: "b=6.85 ft, c_bar=0.92 ft, S=5.90 ft²"
+    flight_test_reference_geometry:
+      mac_m: 0.278892
+      wing_area_m2: 0.54831374208
+      source_ft_values: "c_bar=0.915 ft, S=5.902 ft²"
+    difference:
+      mac_m_absolute: 0.001524
+      wing_area_m2_absolute: 0.000186
+    policy: "aircraft.py uses 2017 airframe baseline. aerodynamics.py uses the 2015 flight-test reference geometry that is paired with the identified derivatives. DO NOT merge or average these values."
+    note: "The 2017 table rounds to 2 decimal places in ft; the 2015 table uses 3 decimal places. The difference is within rounding tolerance of the same physical airframe. Each module uses its own source's geometry to maintain exact traceability."
+
+# -----------------------------------------------------------------------------
+# PROJECT_DEFINED_PARAMETERS
+# Project abstractions, candidate structures, fault definitions, and
+# identification plans. Nothing in this section is to be attributed to NASA
+# unless a specific NASA-supported statement is separately cited above.
+# -----------------------------------------------------------------------------
+project_defined_parameters:
+
+  thrust_model_abstraction:
+    model_form: "PROJECT_DEFINED_ABSTRACTION"
+    narrative: "Project abstraction for thrust estimation. Keep NASA's RPM -> engine model -> thrust system-identification description separate from NASA's GTM nonlinear-simulation structure pilot throttle -> first-order engine dynamics -> thrust. Do not claim that throttle -> RPM -> thrust is the only NASA-verified architecture."
+    nasa_reference_structures:
+      rpm_based_thrust_estimation: "nasa_verified_model_structure.propulsion_model_references.propulsion_system_identification_description"
+      throttle_to_thrust_dynamics: "nasa_verified_model_structure.propulsion_model_references.gtm_nonlinear_simulation_description"
+    project_candidate_structure:
+      primary_predictor: "engine_rpm"
+      ram_drag_inputs: ["airspeed", "engine_rpm"]
+      throttle_to_rpm_dynamics: "TO_BE_IDENTIFIED"
+    equation_abstraction: "T = f(RPM, V, ...)"
+    equation_status: "PROJECT_DEFINED_NOT_NASA_EQUATION"
+    equation_note: "This functional notation is a project-defined abstraction only. NASA is not being cited as providing this equation or functional form."
+    provenance:
+      model_structure: "PROJECT_DEFINED"
+      model_parameters: "TO_BE_IDENTIFIED"
+
+  engine_static_thrust_identification:
+    status: "TO_BE_IDENTIFIED"
+    scope: "IDENTIFICATION_FROM_EXISTING_NASA_DATA_OR_SYSTEM_ID_ONLY"
+    physical_ground_test_on_nasa_t2: false
+    planned_inputs:
+      rpm: "primary thrust predictor consistent with NASA-described methodology"
+      airspeed: "candidate input for project-defined ram-drag correction structure"
+      throttle_command: "recorded/control input that may support dynamic identification"
+    planned_outputs: ["thrust_per_engine"]
+    method:
+      - "Use existing NASA ground-test-derived engine-model information if it becomes available."
+      - "Use available NASA flight data and system-identification methods."
+    note: "This project does not plan or imply new physical ground tests on the NASA T-2. Identification relies on existing NASA data/model information and flight-data system identification."
+
+  engine_dynamic_lag:
+    status: "STRUCTURE_VERIFIED_PARAMETER_TO_BE_IDENTIFIED"
+    verified_structure: "first_order_lag_throttle_to_thrust"
+    verified_structure_source: "nasa_verified_model_structure.engine_dynamics"
+    throttle_to_rpm_dynamics: "NOT_FOUND_DO_NOT_ASSUME"
+    time_constant_sec: "NOT_FOUND_DO_NOT_ASSUME"
+    identification_method: "Use NASA data/model information and system-identification methods if sufficient to identify a numerical dynamic parameter; otherwise leave it unparameterized."
+    note: "NASA verifies the first-order throttle-to-thrust structure for the GTM nonlinear simulation, but no generic time constant is inserted and no T-2 throttle-to-RPM dynamics are assumed."
+
+  ram_drag_model:
+    status: "PROJECT_DEFINED_PROPOSED_STRUCTURE"
+    structure: "ram_drag = f(airspeed, engine_rpm)"
+    structure_origin: "PROJECT_DEFINED_NOT_NASA_FORMULATION"
+    nasa_supported_statement: "NASA states that adjustments for ram drag were identified from flight data."
+    parameters: "NOT_FOUND_DO_NOT_ASSUME"
+    note: "The functional structure above is a project proposal for identification; it is not a verified NASA mathematical formulation."
+
+  health_monitoring_states:
+    thrust_loss_factor_per_engine:
+      symbol: "lambda_i"
+      range: "[0, 1]"
+      convention: "lambda_i = 0 -> healthy engine; lambda_i = 1 -> complete modeled thrust loss for engine i"
+      thrust_relation: "T_actual_i = (1 - lambda_i) * T_expected_i"
+      model_origin: "PROJECT_DEFINED_NOT_NASA_DERIVED"
+      status: "TO_BE_ESTIMATED"
+      note: "lambda_i and its thrust-loss relation are project-defined health-monitoring abstractions, not NASA-derived propulsion equations."
+
+    engine_degradation:
+      category: "PHYSICAL_ENGINE_HEALTH_CHANGE"
+      description: "Slowly varying physical reduction in engine thrust capability at a comparable operating state."
+      status: "TO_BE_ESTIMATED"
+
+    sensor_bias:
+      rpm_bias:
+        category: "SENSOR_FAULT"
+        description: "Additive bias on the RPM measurement; keep separate from physical engine degradation."
+        status: "TO_BE_ESTIMATED"
+      pump_voltage_bias:
+        category: "SENSOR_FAULT"
+        description: "Additive bias on the pump-voltage measurement; project-defined sensor fault, not an engine-degradation parameter."
+        status: "TO_BE_ESTIMATED"
+
+    note: "No specific T-2 degradation/fault parameterization is established by the located NASA sources. The health/fault model in this section is project-defined and separated from NASA-supported data."
+
+  use_of_kaggle_cmapss_data:
+    allowed_as_direct_substitute: false
+    allowed_as_conceptual_reference: true
+    note: "May be used for conceptual understanding of turbofan degradation modeling, but not as a source of numeric parameters for the T-2 JetCat P70 propulsion model."
+
+# Aerodynamic derivative note:
+# CL_alpha, CL_q, CL_delta_e, Cm_alpha, Cm_q, and Cm_delta_e are NOT globally
+# missing. Flight-specific estimates are stored under FLIGHT_TEST_IDENTIFIED_DATA.
+# They must not be collapsed into one universal T-2 coefficient set.
+#
+# -----------------------------------------------------------------------------
+# NOT_FOUND_DO_NOT_ASSUME
+# Explicit placeholders for propulsion quantities not verified for the exact
+# T-2 configuration. Do not populate these from generic P70/vendor/turbofan
+# data unless exact configuration applicability is independently established.
+# -----------------------------------------------------------------------------
+not_found_do_not_assume:
+
+  engine_variant: "NOT_FOUND_DO_NOT_ASSUME"
+  fuel_type: "NOT_FOUND_DO_NOT_ASSUME"
+  max_thrust_verified_with_test_condition: "NOT_FOUND_DO_NOT_ASSUME"
+  normal_operating_rpm_range: "NOT_FOUND_DO_NOT_ASSUME"
+  maximum_rpm: "NOT_FOUND_DO_NOT_ASSUME"
+  fuel_flow_vs_rpm_or_throttle: "NOT_FOUND_DO_NOT_ASSUME"
+  pump_voltage_vs_rpm_or_throttle_map: "NOT_FOUND_DO_NOT_ASSUME"
+  engine_operating_temperature: "NOT_FOUND_DO_NOT_ASSUME"
+  throttle_to_rpm_static_map: "NOT_FOUND_DO_NOT_ASSUME"
+  throttle_to_rpm_dynamics: "NOT_FOUND_DO_NOT_ASSUME"
+  rpm_to_thrust_static_map: "NOT_FOUND_DO_NOT_ASSUME"
+  thrust_vs_throttle_and_airspeed_full_map: "NOT_FOUND_DO_NOT_ASSUME"
+  thrust_coefficient_C_T: "NOT_FOUND_DO_NOT_ASSUME"
+  power_coefficient_C_P: "NOT_FOUND_DO_NOT_ASSUME"
+  fuel_flow_map: "NOT_FOUND_DO_NOT_ASSUME"
+  engine_efficiency: "NOT_FOUND_DO_NOT_ASSUME"
+  engine_time_constant_or_step_response: "NOT_FOUND_DO_NOT_ASSUME"
+  left_right_engine_data: "NOT_FOUND_DO_NOT_ASSUME"
+  left_right_engine_asymmetry_data: "NOT_FOUND_DO_NOT_ASSUME"
+  direct_download_link_to_T2_flight_dataset_with_engine_telemetry: "NOT_FOUND_DO_NOT_ASSUME"
+  explicit_mathematical_form_of_NASA_engine_model: "NOT_FOUND_DO_NOT_ASSUME"
+  public_equation_form: "NOT_FOUND_DO_NOT_ASSUME"
