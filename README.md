@@ -71,6 +71,22 @@ Simulation telemetry ─────────► Dashboard / Playback
 
 The basic `main.py` simulation path runs the scenario and simulator and saves telemetry. Sensor modelling, state estimation, and health monitoring are provided as downstream project layers through `digital_twin/integration.py`.
 
+## How the Project Works — Step by Step
+
+For readers who aren't engineers, here's what happens, in plain terms, when a simulation runs:
+
+1. **Configuration** — The project loads the aircraft's setup and the reference data it needs to get started.
+2. **Aircraft & Atmosphere** — It defines the aircraft's basic properties and the surrounding air conditions.
+3. **Aerodynamics** — It calculates how the aircraft responds to small changes in motion or control input.
+4. **Flight Dynamics** — It works out how the aircraft's state changes from one moment to the next.
+5. **Gust/Turbulence** — A project-defined gust — a brief, deliberate puff of wind — is introduced to see how the aircraft reacts to a disturbance.
+6. **Simulator/RK4** — The underlying equations are stepped forward in time, in small increments, to trace out the aircraft's response.
+7. **Telemetry** — The results of the run are saved.
+8. **Sensor Model** — Simulated instrument readings are generated, including realistic noise and small errors.
+9. **Estimator** — The project estimates what the aircraft's true state most likely was, based on those noisy readings.
+10. **Health Monitor** — The system checks the estimated data for anything that looks abnormal.
+11. **Dashboard** — The results are displayed and can be replayed in a browser.
+
 ## Key Components
 
 ### Aerodynamics
@@ -169,7 +185,11 @@ The Flight 15 and Flight 41 reference-condition scenarios are **reference-condit
 
 ## Recorded Demonstrations
 
-The `records/` directory contains MP4 recordings showing the dashboard and different Digital Twin operating cases.
+The `records/` directory contains MP4 recordings of the dashboard and various Digital Twin operating cases.
+
+> GitHub does not embed or autoplay repository-hosted video files inline within a README. Each link below is a relative path to the file in `records/`; clicking it opens GitHub's own file view for that video, which includes native playback controls there. This is the supported way to present repository video from a README, short of uploading through GitHub's own asset-hosting flow.
+>
+> These recordings are project demonstrations of the current implementation. **They are not reproductions of NASA AirSTAR flight-test recordings.**
 
 ### 1. Environment / Aircraft Movement
 
@@ -207,7 +227,16 @@ Shows the natural short-period response from a project-defined initial perturbat
 
 Shows the response to the project's elevator doublet excitation and the resulting short-period dynamics.
 
-> **Note:** These MP4 files are project demonstrations of the current implementation. They are not reproductions of the original NASA AirSTAR flight-test recordings.
+## Which Demonstration Should I Watch?
+
+A quick, plain-language guide if you just want the gist of each recording:
+
+- **`demo_project.mp4`** — The best starting point: an overall walkthrough of the project.
+- **`environment_check_movement.mp4`** — Shows the aircraft and dashboard responding to telemetry.
+- **`flight_41_gust_response.mp4`** — Shows how the aircraft responds to a simulated wind gust.
+- **`instability_response.mp4`** — Shows an oscillating, unstable response used to demonstrate dynamic behavior.
+- **`small_disturbance_free_response.mp4`** — Shows the aircraft settling back down after a small nudge, with no control input.
+- **`t2_doublet_shortperiod_response.mp4`** — Shows the aircraft's response to a quick back-and-forth elevator movement.
 
 ## NASA Data vs Project-Defined Data
 
@@ -268,6 +297,33 @@ aerospace_digital_twin/
 │
 └── tests/
 ```
+
+## Project File Legend
+
+A plain-language guide to what the main files and folders do:
+
+| File / Folder | What it does |
+|---|---|
+| `config.yaml` | Stores the main aircraft/model configuration and reference data |
+| `main.py` | Starts and runs a selected simulation |
+| `models/aircraft.py` | Defines the aircraft configuration |
+| `models/atmosphere.py` | Calculates standard atmospheric conditions |
+| `models/aerodynamics.py` | Calculates aerodynamic response |
+| `models/conversion.py` | Converts aerodynamic data into dynamic-model parameters |
+| `models/flight_dynamics.py` | Calculates how the aircraft motion changes |
+| `models/propulsion.py` | Represents the aircraft's engine system/model interface |
+| `models/turbulence.py` | Generates the project-defined longitudinal gust |
+| `simulation/scenarios.py` | Defines the different cases the simulator can run |
+| `simulation/simulator.py` | Runs the aircraft simulation over time |
+| `sensors/sensor_model.py` | Simulates sensor measurements |
+| `digital_twin/estimator.py` | Estimates the aircraft state |
+| `digital_twin/health_monitor.py` | Checks the estimated system for abnormal conditions |
+| `digital_twin/integration.py` | Connects sensors, estimation, and health monitoring |
+| `dashboard/app.py` | Runs the dashboard/backend |
+| `dashboard/dashboard.html` | Displays the aircraft and telemetry in the browser |
+| `records/` | Contains recorded project demonstration videos |
+| `data/processed/` | Contains generated simulation telemetry |
+| `tests/` | Checks that the project components work correctly |
 
 ## Installation
 
