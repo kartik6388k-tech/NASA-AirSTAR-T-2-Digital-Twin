@@ -216,6 +216,7 @@ class FlightDynamics:
         state: PerturbationState,
         derivatives: ShortPeriodDerivatives,
         delta_e: float,
+        w_gust: float = 0.0,
     ) -> dict:
         """
         Computes dx/dt = [wdot, qdot] directly from the NASA short-period
@@ -229,6 +230,11 @@ class FlightDynamics:
             derivatives: Project-derived dimensional stability/control derivatives,
                 bound to the same FlightCondition as this model's trim.
             delta_e: Elevator perturbation (rad). Must be finite.
+            w_gust: Optional vertical gust velocity (m/s), body-z downward.
+                Defaults to 0.0 (unperturbed atmosphere).
+                Modifies relative aerodynamic vertical velocity:
+                    delta_w_aero = delta_w - w_gust
+                Affects only aerodynamic Zw and Mw terms.
 
         Returns:
             dict with 'derivatives', 'outputs', and 'diagnostics' sub-dicts.
@@ -237,7 +243,7 @@ class FlightDynamics:
             ValueError: If any input is non-finite, non-positive mass/iyy,
                 or flight-condition mismatch between trim and derivatives.
         """
-        # 1. Validation — mass, iyy, delta_e
+        # 1. Validation — mass, iyy, delta_e, w_gust
         mass = _require_finite("mass", mass)
         if mass <= 0.0:
             raise ValueError("Aircraft mass must be a positive finite value.")
@@ -249,6 +255,7 @@ class FlightDynamics:
             )
 
         delta_e = _require_finite("delta_e", delta_e)
+        w_gust = _require_finite("w_gust", w_gust)
 
         # 2. Validation — flight-condition binding
         if not isinstance(derivatives, ShortPeriodDerivatives):
@@ -267,27 +274,32 @@ class FlightDynamics:
 
         Ue = self.trim.u0
 
-        # 3. Perturbation Z-force and M-moment (dimensional).
-        #    This is the right-hand side A' x + B' delta_e before the M'
-        #    mass-matrix division.
+        # 3. Aerodynamic relative vertical velocity perturbation:
+        #    delta_w_aero = delta_w - w_gust
+        #    Body-axis vertical velocity state delta_w is preserved.
+        delta_w_aero = state.delta_w - w_gust
+
+        # 4. Perturbation Z-force and M-moment (dimensional).
+        #    delta_w_aero enters the aerodynamic Zw and Mw terms.
+        #    Elevator, pitch rate, and kinematic terms remain unchanged.
         delta_Z_force_N = (
-            derivatives.Zw * state.delta_w
+            derivatives.Zw * delta_w_aero
             + derivatives.Zq * state.delta_q
             + derivatives.Zde * delta_e
         )
         delta_M_pitch_Nm = (
-            derivatives.Mw * state.delta_w
+            derivatives.Mw * delta_w_aero
             + derivatives.Mq * state.delta_q
             + derivatives.Mde * delta_e
         )
 
-        # 4. NASA short-period equations of motion: M' xdot = A' x + B' delta_e
+        # 5. NASA short-period equations of motion: M' xdot = A' x + B' delta_e
         #    Row 1: m * wdot = Z + m * Ue * q  -->  wdot = Z/m + Ue * q
         delta_w_dot = delta_Z_force_N / mass + Ue * state.delta_q
         #    Row 2: Iy * qdot = M              -->  qdot = M / Iy
         delta_q_dot = delta_M_pitch_Nm / iyy
 
-        # 5. Perturbation specific force in body-Z (what an accelerometer at
+        # 6. Perturbation specific force in body-Z (what an accelerometer at
         #    the CG measures due to the modeled perturbation Z-force). This
         #    deliberately excludes the Ue*q kinematic coupling term, since an
         #    accelerometer measures applied specific force, not total
@@ -295,7 +307,7 @@ class FlightDynamics:
         #    for the short-period model.
         perturbation_az = delta_Z_force_N / mass
 
-        # 6. Verify that computed outputs are finite (guards against
+        # 7. Verify that computed outputs are finite (guards against
         #    extreme-but-valid finite inputs causing overflow).
         for name, val in (
             ("delta_w_dot", delta_w_dot),
@@ -321,5 +333,8 @@ class FlightDynamics:
             "diagnostics": {
                 "delta_Z_force_N": delta_Z_force_N,
                 "delta_M_pitch_Nm": delta_M_pitch_Nm,
+                "w_gust_mps": w_gust,
+                "delta_w_aero_mps": delta_w_aero,
             },
         }
+

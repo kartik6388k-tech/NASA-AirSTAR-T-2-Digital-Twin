@@ -100,13 +100,15 @@ class Simulator:
         self,
         aircraft: Aircraft,
         flight_data: FlightTestAeroData,
-        propulsion: PropulsionModel
+        propulsion: PropulsionModel,
+        gust_model: Optional[Callable[[float], float]] = None,
     ):
         # Stored for future use only -- see module docstring. Not read by
         # the integration or diagnostics in this class.
         self.aircraft = aircraft
         self.flight_data = flight_data
         self.propulsion = propulsion
+        self.gust_model = gust_model
 
         # 1. Initialize Atmosphere for Nominal Altitude
         self.nominal_altitude = self.flight_data.nominal_condition.altitude_m
@@ -138,14 +140,29 @@ class Simulator:
         # Data logging
         self.history: List[Dict[str, Any]] = []
 
-    def _get_derivatives(self, state: PerturbationState, delta_e: float) -> tuple[float, float]:
+    def _get_gust(self, t: float) -> float:
+        """Helper to sample vertical gust w_gust (m/s) at time t."""
+        if self.gust_model is None:
+            return 0.0
+        val = self.gust_model(t)
+        if not math.isfinite(val):
+            raise ValueError(f"gust_model returned non-finite value at t={t}: {val}")
+        return float(val)
+
+    def _get_derivatives(
+        self,
+        state: PerturbationState,
+        delta_e: float,
+        w_gust: float = 0.0,
+    ) -> tuple[float, float]:
         """Helper to extract dx/dt for the RK4 step."""
         res = self.fd_engine.calculate_state_derivatives(
             mass=self.mass,
             iyy=self.iyy,
             state=state,
             derivatives=self.short_period_derivatives,
-            delta_e=delta_e
+            delta_e=delta_e,
+            w_gust=w_gust,
         )
         return res['derivatives']['delta_w_dot'], res['derivatives']['delta_q_dot']
 
@@ -160,34 +177,40 @@ class Simulator:
         # k1
         cmd1 = control_schedule(t)
         cmd1.validate()
-        dw_dot1, dq_dot1 = self._get_derivatives(current_state, cmd1.delta_elevator_rad)
+        w_gust1 = self._get_gust(t)
+        dw_dot1, dq_dot1 = self._get_derivatives(current_state, cmd1.delta_elevator_rad, w_gust1)
 
         # k2
-        cmd2 = control_schedule(t + dt / 2.0)
+        t_mid = t + dt / 2.0
+        cmd2 = control_schedule(t_mid)
         cmd2.validate()
+        w_gust2 = self._get_gust(t_mid)
         state2 = PerturbationState(
             delta_w=current_state.delta_w + 0.5 * dt * dw_dot1,
             delta_q=current_state.delta_q + 0.5 * dt * dq_dot1
         )
-        dw_dot2, dq_dot2 = self._get_derivatives(state2, cmd2.delta_elevator_rad)
+        dw_dot2, dq_dot2 = self._get_derivatives(state2, cmd2.delta_elevator_rad, w_gust2)
 
         # k3
-        cmd3 = control_schedule(t + dt / 2.0)
+        cmd3 = control_schedule(t_mid)
         cmd3.validate()
+        w_gust3 = w_gust2
         state3 = PerturbationState(
             delta_w=current_state.delta_w + 0.5 * dt * dw_dot2,
             delta_q=current_state.delta_q + 0.5 * dt * dq_dot2
         )
-        dw_dot3, dq_dot3 = self._get_derivatives(state3, cmd3.delta_elevator_rad)
+        dw_dot3, dq_dot3 = self._get_derivatives(state3, cmd3.delta_elevator_rad, w_gust3)
 
         # k4
-        cmd4 = control_schedule(t + dt)
+        t_end = t + dt
+        cmd4 = control_schedule(t_end)
         cmd4.validate()
+        w_gust4 = self._get_gust(t_end)
         state4 = PerturbationState(
             delta_w=current_state.delta_w + dt * dw_dot3,
             delta_q=current_state.delta_q + dt * dq_dot3
         )
-        dw_dot4, dq_dot4 = self._get_derivatives(state4, cmd4.delta_elevator_rad)
+        dw_dot4, dq_dot4 = self._get_derivatives(state4, cmd4.delta_elevator_rad, w_gust4)
 
         # Advance state
         next_w = current_state.delta_w + (dt / 6.0) * (dw_dot1 + 2.0 * dw_dot2 + 2.0 * dw_dot3 + dw_dot4)
@@ -217,8 +240,11 @@ class Simulator:
         cmd = control_schedule(time)
         cmd.validate()
 
-        # PROJECT_DERIVED: Small angle approximation mapping vertical velocity to angle of attack
-        delta_alpha = state.delta_w / self.Ue
+        w_gust = self._get_gust(time)
+        delta_w_aero = state.delta_w - w_gust
+
+        # PROJECT_DERIVED: Small angle approximation mapping relative vertical velocity to angle of attack
+        delta_alpha = delta_w_aero / self.Ue
 
         aero_coeffs = compute_longitudinal_delta_coefficients(
             flight_data=self.flight_data,
@@ -249,13 +275,16 @@ class Simulator:
             iyy=self.iyy,
             state=state,
             derivatives=self.short_period_derivatives,
-            delta_e=cmd.delta_elevator_rad
+            delta_e=cmd.delta_elevator_rad,
+            w_gust=w_gust,
         )
 
         self.history.append({
             "time_s": time,
             "delta_w_mps": state.delta_w,
             "delta_q_rads": state.delta_q,
+            "w_gust_mps": w_gust,
+            "delta_w_aero_mps": delta_w_aero,
             "delta_e_rad": cmd.delta_elevator_rad,
             "delta_w_dot": fd_res['derivatives']['delta_w_dot'],
             "delta_q_dot": fd_res['derivatives']['delta_q_dot'],
@@ -274,7 +303,8 @@ class Simulator:
         initial_state: PerturbationState,
         duration: float,
         dt: float,
-        control_schedule: Callable[[float], SimulationCommand]
+        control_schedule: Callable[[float], SimulationCommand],
+        gust_model: Optional[Callable[[float], float]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Executes the main simulation loop and returns the state history.
@@ -284,6 +314,9 @@ class Simulator:
         is left over -- performs one additional, explicitly shorter RK4 step
         of that remainder so the run always ends exactly at t=duration.
         """
+        if gust_model is not None:
+            self.gust_model = gust_model
+
         if not math.isfinite(duration) or duration <= 0.0:
             raise ValueError(f"Simulation duration must be strictly positive, got {duration}")
         if not math.isfinite(dt) or dt <= 0.0:

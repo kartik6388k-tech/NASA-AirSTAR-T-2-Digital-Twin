@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NASA AirSTAR T-2 · Simulation Telemetry Playback</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+<!-- Three.js via importmap for ES modules -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;700;800&display=swap');
+
+  :root {
+    --glass-bg: rgba(255,255,255,0.04);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-blur: 16px;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0a0e1a;
+    color: #e2e8f0;
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+  }
+
+  .glass-sm {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+  }
+
+  /* Provenance badges */
+  .badge-nasa { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  .badge-project { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+  .badge-mock { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
+  .badge-unidentified { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+  /* Canvas container */
+  #three-canvas { width: 100%; height: 100%; display: block; }
+
+  /* Status pulse */
+  @keyframes pulse-green { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .pulse-live { animation: pulse-green 1.5s ease-in-out infinite; }
+
+  /* Chart container override */
+  .chart-container { position: relative; height: 150px; }
+</style>
+</head>
+
+<body class="antialiased">
+
+<!-- ============================================================ -->
+<!-- LAYOUT GRID                                                   -->
+<!-- ============================================================ -->
+<div style="display:grid; grid-template-rows: 56px 1fr 180px; grid-template-columns: 1fr 380px; height:100vh; gap:0;">
+
+  <!-- HEADER (spans 2 cols) -->
+  <header style="grid-column:1/3;" class="flex items-center justify-between px-6 border-b border-white/5" id="header-bar">
+    <div class="flex items-center gap-4">
+      <!-- Inline SVG schematic -->
+      <svg width="44" height="22" viewBox="0 0 120 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 28 Q18 26 48 26 L100 27 Q108 27.5 110 28 Q108 28.5 100 29 L48 30 Q18 30 10 28Z" fill="#1e293b" stroke="#60a5fa" stroke-width="1.2"/>
+        <path d="M42 27 L28 12 Q27 10 29 10 L62 10 Q64 10 63 12 L56 27" fill="#1e293b" stroke="#60a5fa" stroke-width="0.9"/>
+        <path d="M42 29 L28 44 Q27 46 29 46 L62 46 Q64 46 63 44 L56 29" fill="#1e293b" stroke="#60a5fa" stroke-width="0.9"/>
+        <path d="M94 27 L88 18 Q87 17 89 17 L104 17 Q106 17 105 18 L100 27" fill="#1e293b" stroke="#60a5fa" stroke-width="0.8"/>
+        <path d="M94 29 L88 38 Q87 39 89 39 L104 39 Q106 39 105 38 L100 29" fill="#1e293b" stroke="#60a5fa" stroke-width="0.8"/>
+      </svg>
+      <div>
+        <h1 class="text-sm font-extrabold tracking-wide text-white/90">
+          <span class="text-blue-400">NASA AirSTAR</span> T-2 · Simulation Telemetry Playback
+        </h1>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <!-- Run selector -->
+      <select id="run-selector" class="glass-sm px-3 py-1.5 text-xs font-mono text-slate-300 bg-transparent outline-none cursor-pointer" style="min-width:250px;">
+        <option value="">DEMO — PROJECT_DEFINED_MOCK_OSCILLATOR</option>
+      </select>
+
+      <!-- Playback controls -->
+      <div class="flex items-center gap-1.5">
+        <button onclick="pbControl('reset')" class="glass-sm px-2.5 py-1 text-xs hover:bg-white/10 transition" title="Reset to start">⏮ Reset</button>
+        <button id="btn-play-pause" onclick="pbToggle()" class="glass-sm px-2.5 py-1 text-xs hover:bg-white/10 transition" title="Play/Pause">⏸ Pause</button>
+        <button id="btn-loop" onclick="pbLoopToggle()" class="glass-sm px-2.5 py-1 text-xs hover:bg-white/10 transition text-slate-400" title="Toggle Looping">🔁 Loop: OFF</button>
+      </div>
+
+      <!-- Connection status -->
+      <div class="flex items-center gap-2 text-xs text-slate-400">
+        <div id="status-dot" class="w-2 h-2 rounded-full bg-emerald-400 pulse-live"></div>
+        <span id="status-text">CONNECTED</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 3D VIEWPORT (left) -->
+  <div style="grid-column:1; grid-row:2; position:relative; overflow:hidden; background:#080c16;">
+    <canvas id="three-canvas"></canvas>
+
+    <!-- Overlay banner -->
+    <div style="position:absolute; top:12px; left:14px;" class="text-xs text-slate-400 font-mono flex items-center gap-2 pointer-events-none">
+      <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+      <span>QUALITATIVE VISUALIZATION — <span id="lbl-source" class="text-blue-400 font-bold">DEMO — PROJECT_DEFINED_MOCK_OSCILLATOR</span></span>
+    </div>
+
+    <!-- Qualitative Flight Dynamics Rate/Velocity Indicators -->
+    <div style="position:absolute; top:14px; right:14px; display:flex; gap:8px;" class="pointer-events-none">
+      <!-- Pitch Rate Indicator (delta_q) -->
+      <div style="width:64px; height:160px;" class="glass-sm p-2 flex flex-col items-center justify-between font-mono text-[9px] text-slate-400 shadow-lg">
+        <div class="text-[8px] text-emerald-400 uppercase font-bold tracking-tight text-center">Pitch Rate</div>
+        <span class="text-emerald-400 font-bold text-[8px]">+δq (up)</span>
+        <div style="position:relative; width:10px; height:80px; background:rgba(255,255,255,0.06); border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,0.12);">
+          <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:#94a3b8;"></div>
+          <div id="pitch-indicator-marker" style="position:absolute; top:calc(50% - 3px); left:1px; right:1px; height:6px; background:#10b981; border-radius:2px; transition:top 0.05s ease-out;"></div>
+        </div>
+        <span class="text-emerald-400 font-bold text-[8px]">-δq (dn)</span>
+        <span id="pitch-indicator-val" class="text-[8px] text-emerald-300 font-bold">+0.0000</span>
+      </div>
+
+      <!-- Vertical Velocity Perturbation Indicator (delta_w) -->
+      <div style="width:64px; height:160px;" class="glass-sm p-2 flex flex-col items-center justify-between font-mono text-[9px] text-slate-400 shadow-lg">
+        <div class="text-[8px] text-amber-400 uppercase font-bold tracking-tight text-center">Vert Vel</div>
+        <span class="text-amber-400 font-bold text-[8px]">+δw (sink)</span>
+        <div style="position:relative; width:10px; height:80px; background:rgba(255,255,255,0.06); border-radius:5px; overflow:hidden; border:1px solid rgba(255,255,255,0.12);">
+          <div style="position:absolute; top:50%; left:0; right:0; height:1px; background:#94a3b8;"></div>
+          <div id="vert-indicator-marker" style="position:absolute; top:calc(50% - 3px); left:1px; right:1px; height:6px; background:#f59e0b; border-radius:2px; transition:top 0.05s ease-out;"></div>
+        </div>
+        <span class="text-amber-400 font-bold text-[8px]">-δw (climb)</span>
+        <span id="vert-indicator-val" class="text-[8px] text-amber-300 font-bold">+0.00</span>
+      </div>
+    </div>
+
+    <!-- TELEMETRY LEGEND -->
+    <div id="telemetry-legend" style="position:absolute; bottom:14px; left:14px; max-width:440px; pointer-events:none;" class="glass-sm p-3.5 text-xs font-mono border-l-4 border-blue-500 shadow-xl bg-slate-950/85">
+      <div class="font-bold text-white text-[11px] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+        <span>Simulation Telemetry Playback</span>
+      </div>
+      <div class="space-y-1.5 text-[11px] text-slate-300">
+        <div><span class="text-emerald-400 font-bold">δq</span> → Qualitative Pitch-Rate Indicator (instantaneous rate cue, not Euler attitude θ)</div>
+        <div><span class="text-amber-400 font-bold">δw</span> → Controlled Heave Displacement Cue (vertical velocity perturbation)</div>
+        <div><span class="text-sky-400 font-bold">Left/right</span> → <span id="lbl-lateral-legend">Disabled (longitudinal twin [δw, δq] only; no lateral dynamics)</span></div>
+      </div>
+      <div class="text-[10px] text-slate-400 italic pt-2 mt-2 border-t border-white/10 leading-tight">
+        Visualization is qualitative and uses smooth 60fps interpolation. No lateral physical states exist in the short-period model.
+      </div>
+    </div>
+
+    <!-- Exact sample readout -->
+    <div id="telemetry-readout" style="position:absolute; bottom:14px; right:14px;" class="glass-sm px-3.5 py-2 text-xs font-mono text-slate-300 flex items-center gap-3">
+      <span><span class="text-emerald-400 font-bold">δq:</span> <span id="val-dq">+0.0000</span> <span class="text-slate-500 text-[10px]">rad/s</span></span>
+      <span class="text-slate-600">|</span>
+      <span><span class="text-amber-400 font-bold">δw:</span> <span id="val-dw">+0.0000</span> <span class="text-slate-500 text-[10px]">m/s</span></span>
+      <span class="text-slate-600">|</span>
+      <span><span class="text-rose-400 font-bold">w_g:</span> <span id="val-wg">+0.0000</span> <span class="text-slate-500 text-[10px]">m/s</span></span>
+      <span class="text-slate-600">|</span>
+      <span><span class="text-sky-400 font-bold">δe:</span> <span id="val-de">+0.0000</span> <span class="text-slate-500 text-[10px]">rad</span></span>
+      <span class="text-slate-600">|</span>
+      <span><span class="text-indigo-400 font-bold">turn:</span> <span id="val-turn">+0.0000</span></span>
+    </div>
+  </div>
+
+  <!-- TELEMETRY PANEL (right) -->
+  <div style="grid-column:2; grid-row:2; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:8px; border-left:1px solid rgba(255,255,255,0.05);">
+
+    <!-- Playback progress -->
+    <div class="glass-sm px-3 py-2">
+      <div class="flex justify-between text-[10px] text-slate-500 uppercase tracking-wider mb-1">
+        <span>Playback</span>
+        <span id="pb-counter">— / —</span>
+      </div>
+      <div class="w-full h-1 rounded bg-white/5">
+        <div id="pb-bar" class="h-full rounded bg-blue-500/60 transition-all" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- State cards -->
+    <div id="card-time" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-dq" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-de" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-dw" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-gust" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-lift" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-moment" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-thrust" class="glass-sm px-3 py-2.5"></div>
+    <div id="card-health" class="glass-sm px-3 py-2.5"></div>
+
+    <!-- Provenance footer -->
+    <div class="text-[9px] text-slate-600 px-1 mt-auto pt-2 border-t border-white/5 leading-relaxed">
+      Simulation Telemetry Playback · Read-only diagnostic · Aircraft movement is a qualitative visualization of stored telemetry, not simulated attitude.
+    </div>
+  </div>
+
+  <!-- CHART STRIP (bottom, spans 2 cols) -->
+  <div style="grid-column:1/3; grid-row:3; border-top:1px solid rgba(255,255,255,0.05); padding:10px 16px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+    <div class="glass-sm p-3">
+      <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">δw Perturbation Velocity [m/s]</div>
+      <div class="chart-container"><canvas id="chart-dw"></canvas></div>
+    </div>
+    <div class="glass-sm p-3">
+      <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-1">δq Pitch Rate [rad/s]</div>
+      <div class="chart-container"><canvas id="chart-dq"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- THREE.JS 3D SCENE                                             -->
+<!-- ============================================================ -->
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const canvas = document.getElementById('three-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x080c16);
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x080c16, 0.015);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 500);
+camera.position.set(12, 6, 14);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0, 0);
+
+// --- Lighting ---
+const ambient = new THREE.AmbientLight(0x4466aa, 0.6);
+scene.add(ambient);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+dirLight.position.set(10, 15, 8);
+dirLight.castShadow = true;
+scene.add(dirLight);
+
+const rimLight = new THREE.DirectionalLight(0x3388ff, 0.5);
+rimLight.position.set(-5, 3, -8);
+scene.add(rimLight);
+
+// --- Ground grid ---
+const gridHelper = new THREE.GridHelper(60, 60, 0x1a2744, 0x111827);
+gridHelper.position.y = -4;
+scene.add(gridHelper);
+
+// --- Procedural aircraft ---
+const metalMat = new THREE.MeshStandardMaterial({
+  color: 0xc0c8d8, metalness: 0.7, roughness: 0.25,
+});
+const darkMat = new THREE.MeshStandardMaterial({
+  color: 0x2a3a5c, metalness: 0.5, roughness: 0.4,
+});
+const accentMat = new THREE.MeshStandardMaterial({
+  color: 0x3b82f6, metalness: 0.6, roughness: 0.3, emissive: 0x1e40af, emissiveIntensity: 0.15,
+});
+
+const aircraftGroup = new THREE.Group();
+
+// Fuselage
+const fuselageGeo = new THREE.CylinderGeometry(0.35, 0.2, 8, 16);
+fuselageGeo.rotateZ(Math.PI / 2);
+const fuselage = new THREE.Mesh(fuselageGeo, metalMat);
+aircraftGroup.add(fuselage);
+
+// Nose cone
+const noseGeo = new THREE.ConeGeometry(0.35, 1.5, 16);
+noseGeo.rotateZ(-Math.PI / 2);
+const nose = new THREE.Mesh(noseGeo, accentMat);
+nose.position.x = 4.75;
+aircraftGroup.add(nose);
+
+// Main wings
+const wingGeo = new THREE.BoxGeometry(1.8, 0.06, 7);
+const leftWing = new THREE.Mesh(wingGeo, metalMat);
+leftWing.position.set(-0.2, 0, 0);
+aircraftGroup.add(leftWing);
+
+// Wing tips
+const tipGeo = new THREE.BoxGeometry(0.3, 0.5, 0.06);
+const tipL = new THREE.Mesh(tipGeo, accentMat);
+tipL.position.set(-0.2, 0.22, 3.5);
+aircraftGroup.add(tipL);
+const tipR = new THREE.Mesh(tipGeo, accentMat);
+tipR.position.set(-0.2, 0.22, -3.5);
+aircraftGroup.add(tipR);
+
+// Horizontal stabilizer (fixed portion)
+const hStabGeo = new THREE.BoxGeometry(0.7, 0.04, 3);
+const hStab = new THREE.Mesh(hStabGeo, metalMat);
+hStab.position.set(-3.35, 0.15, 0);
+aircraftGroup.add(hStab);
+
+// Movable Elevator (hinged at trailing edge of horizontal stabilizer)
+const elevatorGroup = new THREE.Group();
+elevatorGroup.position.set(-3.7, 0.15, 0); // Hinge line along span
+const elevatorGeo = new THREE.BoxGeometry(0.5, 0.035, 2.9);
+elevatorGeo.translate(-0.25, 0, 0); // Pivot around leading edge (x=0)
+const elevatorMat = new THREE.MeshStandardMaterial({
+  color: 0x38bdf8, metalness: 0.6, roughness: 0.3, emissive: 0x0284c7, emissiveIntensity: 0.25,
+});
+const elevatorMesh = new THREE.Mesh(elevatorGeo, elevatorMat);
+elevatorGroup.add(elevatorMesh);
+aircraftGroup.add(elevatorGroup);
+
+// Vertical stabilizer
+const vStabGeo = new THREE.BoxGeometry(1.2, 1.4, 0.05);
+const vStab = new THREE.Mesh(vStabGeo, darkMat);
+vStab.position.set(-3.5, 0.85, 0);
+aircraftGroup.add(vStab);
+
+// Engine nacelles
+const engineGeo = new THREE.CylinderGeometry(0.18, 0.18, 1.2, 12);
+engineGeo.rotateZ(Math.PI / 2);
+const engineL = new THREE.Mesh(engineGeo, darkMat);
+engineL.position.set(0.5, -0.3, 1.6);
+aircraftGroup.add(engineL);
+const engineR = new THREE.Mesh(engineGeo, darkMat);
+engineR.position.set(0.5, -0.3, -1.6);
+aircraftGroup.add(engineR);
+
+aircraftGroup.traverse(child => { if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }});
+scene.add(aircraftGroup);
+
+// --- Resize ---
+function resize() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  renderer.setSize(rect.width, rect.height);
+  camera.aspect = rect.width / rect.height;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+// --- Expose objects and animation targets ---
+window._aircraftGroup = aircraftGroup;
+window._elevatorGroup = elevatorGroup;
+window._threeReady = true;
+
+window._animTargets = {
+  y: 0,
+  pitchZ: 0,
+  lateralY: 0,
+  rollX: 0,
+  elevZ: 0,
+};
+
+let currentY = 0;
+let currentPitchZ = 0;
+let currentLateralY = 0;
+let currentRollX = 0;
+let currentElevZ = 0;
+
+// --- Render loop with smooth 60fps interpolation (eliminates 20Hz polling stepping) ---
+function animate() {
+  requestAnimationFrame(animate);
+
+  const targets = window._animTargets;
+  if (targets) {
+    const k = 0.12; // exponential smoothing factor
+    currentY += (targets.y - currentY) * k;
+    currentPitchZ += (targets.pitchZ - currentPitchZ) * k;
+    currentLateralY += (targets.lateralY - currentLateralY) * k;
+    currentRollX += (targets.rollX - currentRollX) * k;
+    currentElevZ += (targets.elevZ - currentElevZ) * k;
+
+    if (aircraftGroup) {
+      aircraftGroup.position.y = currentY;
+      aircraftGroup.rotation.z = currentPitchZ;
+      aircraftGroup.rotation.y = currentLateralY;
+      aircraftGroup.rotation.x = currentRollX;
+    }
+    if (elevatorGroup) {
+      elevatorGroup.rotation.z = currentElevZ;
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+
+<!-- ============================================================ -->
+<!-- CHART.JS + POLLING LOGIC                                      -->
+<!-- ============================================================ -->
+<script>
+// --- Chart setup ---
+const HISTORY_SIZE = 200;
+
+function makeChart(canvasId, label, color) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color + '22',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: true,
+        tension: 0.3,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      scales: {
+        x: {
+          display: true,
+          ticks: { color: '#475569', font: { size: 9, family: 'JetBrains Mono' }, maxTicksLimit: 8 },
+          grid: { color: 'rgba(255,255,255,0.03)' },
+        },
+        y: {
+          ticks: { color: '#475569', font: { size: 9, family: 'JetBrains Mono' }, maxTicksLimit: 5 },
+          grid: { color: 'rgba(255,255,255,0.03)' },
+        }
+      },
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+const chartDw = makeChart('chart-dw', 'δw [m/s]', '#60a5fa');
+const chartDq = makeChart('chart-dq', 'δq [rad/s]', '#34d399');
+
+function pushChart(chart, time, value) {
+  const labels = chart.data.labels;
+  const ds = chart.data.datasets[0].data;
+  labels.push(typeof time === 'number' ? time.toFixed(2) : '—');
+  ds.push(value);
+  if (labels.length > HISTORY_SIZE) { labels.shift(); ds.shift(); }
+  chart.update();
+}
+
+// --- Telemetry card helper ---
+function renderCard(id, label, value, unit, badgeClass, badgeText) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const vStr = (value === null || value === undefined) ? '—' : (typeof value === 'number' ? value.toPrecision(6) : String(value));
+  el.innerHTML = `
+    <div class="flex justify-between items-start">
+      <div class="text-[10px] text-slate-500 uppercase tracking-wider">${label}</div>
+      <span class="text-[8px] font-bold px-1.5 py-0.5 rounded ${badgeClass}">${badgeText}</span>
+    </div>
+    <div class="font-mono text-base font-bold mt-1 text-emerald-400">${vStr} <span class="text-slate-500 text-xs font-normal">${unit}</span></div>
+  `;
+}
+
+// --- Run selector population ---
+async function loadRuns() {
+  try {
+    const res = await fetch('/api/runs');
+    const data = await res.json();
+    const sel = document.getElementById('run-selector');
+    // Keep first option (mock)
+    while (sel.options.length > 1) sel.remove(1);
+    (data.runs || []).forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      sel.appendChild(opt);
+    });
+  } catch (e) { /* graceful */ }
+}
+
+document.getElementById('run-selector').addEventListener('change', async function() {
+  const name = this.value;
+  if (!name) {
+    // Switch back to mock oscillator
+    await fetch('/api/playback?action=unload');
+    chartDw.data.labels = [];
+    chartDw.data.datasets[0].data = [];
+    chartDw.update();
+    chartDq.data.labels = [];
+    chartDq.data.datasets[0].data = [];
+    chartDq.update();
+    return;
+  }
+  try {
+    const res = await fetch(`/api/run/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    if (!data.ok) {
+      alert('Failed to load run: ' + data.error);
+    } else {
+      chartDw.data.labels = [];
+      chartDw.data.datasets[0].data = [];
+      chartDw.update();
+      chartDq.data.labels = [];
+      chartDq.data.datasets[0].data = [];
+      chartDq.update();
+    }
+  } catch (e) {
+    alert('Failed to load run');
+  }
+});
+
+// --- Playback controls ---
+let playbackPaused = false;
+
+window.pbControl = async function(action) {
+  try { await fetch(`/api/playback?action=${action}`); } catch(e) {}
+  if (action === 'reset') playbackPaused = false;
+};
+
+window.pbToggle = async function() {
+  const btn = document.getElementById('btn-play-pause');
+  if (btn && btn.textContent.includes('Replay')) {
+    await pbControl('reset');
+    playbackPaused = false;
+    return;
+  }
+  playbackPaused = !playbackPaused;
+  const action = playbackPaused ? 'pause' : 'play';
+  await pbControl(action);
+};
+
+window.pbLoopToggle = async function() {
+  try {
+    const res = await fetch('/api/playback?action=loop_toggle');
+    const data = await res.json();
+    updateLoopBtn(data.loop);
+  } catch(e) {}
+};
+
+function updateLoopBtn(isLoop) {
+  const btn = document.getElementById('btn-loop');
+  if (!btn) return;
+  if (isLoop) {
+    btn.textContent = '🔁 Loop: ON';
+    btn.className = 'glass-sm px-2.5 py-1 text-xs hover:bg-white/10 transition text-emerald-400 font-bold border border-emerald-500/30';
+  } else {
+    btn.textContent = '🔁 Loop: OFF';
+    btn.className = 'glass-sm px-2.5 py-1 text-xs hover:bg-white/10 transition text-slate-400';
+  }
+}
+
+// --- Main polling loop ---
+let failCount = 0;
+
+async function poll() {
+  try {
+    const res = await fetch('/api/telemetry');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const d = await res.json();
+
+    failCount = 0;
+    document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-emerald-400 pulse-live';
+    document.getElementById('status-text').textContent = 'CONNECTED';
+
+    // --- Exact stored telemetry sample values ---
+    const dq = typeof d.state?.delta_q_rads === 'number' ? d.state.delta_q_rads : 0;
+    const de = typeof d.state?.delta_e_rad === 'number' ? d.state.delta_e_rad : 0;
+    const dw = typeof d.state?.delta_w_mps === 'number' ? d.state.delta_w_mps : 0;
+    const vis = d.visualization || {};
+
+    // 1. Pitch: bounded pitch rate indicator visual cue
+    const pitchVis = typeof vis.pitch_visual === 'number'
+      ? vis.pitch_visual
+      : Math.max(-0.25, Math.min(0.25, dq * 2.5));
+
+    // 2. Vertical: bounded vertical heave cue
+    const vertVis = typeof vis.vertical_visual === 'number'
+      ? vis.vertical_visual
+      : Math.max(-0.4, Math.min(0.4, -dw * 0.15));
+
+    // 3. Left/right: project-defined visual kinematic motion (disabled for saved runs)
+    const lateralVis = typeof vis.lateral_visual === 'number'
+      ? vis.lateral_visual
+      : 0.0;
+
+    // --- Dynamic aircraft movement via 60fps interpolation targets ---
+    if (window._animTargets) {
+      window._animTargets.y = vertVis;
+      window._animTargets.pitchZ = pitchVis;
+      window._animTargets.lateralY = lateralVis;
+      window._animTargets.rollX = -lateralVis * 0.4;
+      window._animTargets.elevZ = Math.max(-0.45, Math.min(0.45, de * 3.5));
+    }
+
+    // --- Pitch-rate indicator gauge (emerald) ---
+    const pitchMarker = document.getElementById('pitch-indicator-marker');
+    if (pitchMarker) {
+      const maxDqVal = 0.20; // rad/s full scale
+      const clampedDq = Math.max(-maxDqVal, Math.min(maxDqVal, dq));
+      // Aerospace body convention: +q is pitch up
+      const pctPitch = 50 - (clampedDq / maxDqVal) * 40;
+      pitchMarker.style.top = `calc(${pctPitch}% - 3px)`;
+      const valPitchEl = document.getElementById('pitch-indicator-val');
+      if (valPitchEl) valPitchEl.textContent = (dq >= 0 ? '+' : '') + dq.toFixed(4);
+    }
+
+    // --- Vertical velocity perturbation indicator gauge (amber) ---
+    const vertMarker = document.getElementById('vert-indicator-marker');
+    if (vertMarker) {
+      const maxDwVal = 2.0; // m/s full scale
+      const clampedDw = Math.max(-maxDwVal, Math.min(maxDwVal, dw));
+      // Aerospace body convention: +w is downward velocity perturbation (sink)
+      const pctVert = 50 + (clampedDw / maxDwVal) * 40;
+      vertMarker.style.top = `calc(${pctVert}% - 3px)`;
+      const valEl = document.getElementById('vert-indicator-val');
+      if (valEl) valEl.textContent = (dw >= 0 ? '+' : '') + dw.toFixed(2);
+    }
+
+    // --- Numerical sample readout overlay near aircraft ---
+    const valDq = document.getElementById('val-dq');
+    if (valDq) valDq.textContent = (dq >= 0 ? '+' : '') + dq.toFixed(4);
+    const valDw = document.getElementById('val-dw');
+    if (valDw) valDw.textContent = (dw >= 0 ? '+' : '') + dw.toFixed(4);
+    const wGust = d.environment?.w_gust_mps;
+    const valWg = document.getElementById('val-wg');
+    if (valWg) {
+      valWg.textContent = (wGust !== undefined && wGust !== null) ? ((wGust >= 0 ? '+' : '') + Number(wGust).toFixed(4)) : '+0.0000';
+    }
+    const valDe = document.getElementById('val-de');
+    if (valDe) valDe.textContent = (de >= 0 ? '+' : '') + de.toFixed(4);
+    const valTurn = document.getElementById('val-turn');
+    if (valTurn) {
+      valTurn.textContent = (lateralVis === 0) ? '0.0000 (disabled)' : ((lateralVis >= 0 ? '+' : '') + lateralVis.toFixed(4));
+    }
+
+    // --- Provenance helpers (single declaration) ---
+    const src = d.provenance?.source || 'UNKNOWN';
+    const isMock = src.includes('MOCK') || src.includes('DEMO');
+    const simBadge = isMock ? 'badge-mock' : 'badge-project';
+    const simLabel = isMock ? 'DEMO' : 'STORED_CSV';
+    const propStatus = d.health?.propulsion_model_status || '';
+    const thrustBadge = propStatus === 'MODEL_NOT_IDENTIFIED' ? 'badge-unidentified' : simBadge;
+    const thrustLabel = propStatus === 'MODEL_NOT_IDENTIFIED' ? 'MODEL_NOT_IDENTIFIED' : simLabel;
+    const gustProv = d.environment?.provenance || 'NONE';
+    const gustBadge = gustProv === 'PROJECT_DEFINED_TURBULENCE' ? 'badge-project' : 'badge-mock';
+    const gustLabel = gustProv === 'PROJECT_DEFINED_TURBULENCE' ? 'PROJECT_DEFINED_TURBULENCE' : 'NONE';
+
+    // --- Source label ---
+    const srcEl = document.getElementById('lbl-source');
+    if (srcEl) {
+      srcEl.textContent = src;
+      srcEl.className = isMock ? 'text-purple-400 font-bold' : 'text-blue-400 font-bold';
+    }
+
+    // --- Update lateral legend ---
+    const lateralLegendEl = document.getElementById('lbl-lateral-legend');
+    if (lateralLegendEl) {
+      lateralLegendEl.textContent = 'Disabled (longitudinal twin [δw, δq] only; no lateral dynamics)';
+      lateralLegendEl.className = 'text-slate-400';
+    }
+
+    // --- Playback status and completion handling ---
+    const pbStatus = d.playback_status || 'RUNNING';
+    const isCompleted = pbStatus === 'COMPLETED';
+    const isPaused = pbStatus === 'PAUSED';
+
+    // Update play/pause button to reflect current state
+    const playPauseBtn = document.getElementById('btn-play-pause');
+    if (playPauseBtn) {
+      if (isCompleted) {
+        playPauseBtn.textContent = '⏮ Replay';
+        playbackPaused = true;
+      } else if (isPaused) {
+        playPauseBtn.textContent = '▶ Play';
+      } else {
+        playPauseBtn.textContent = '⏸ Pause';
+      }
+    }
+
+    // Update loop button
+    updateLoopBtn(d.loop !== undefined ? d.loop : true);
+
+    // --- Playback bar ---
+    if (d.playback_index !== null && d.playback_total !== null) {
+      const pct = isCompleted
+        ? '100.0'
+        : ((d.playback_index / Math.max(d.playback_total - 1, 1)) * 100).toFixed(1);
+      document.getElementById('pb-bar').style.width = pct + '%';
+      document.getElementById('pb-counter').textContent = isCompleted
+        ? `${d.playback_total} / ${d.playback_total} · COMPLETED`
+        : `${d.playback_index} / ${d.playback_total}`;
+    } else {
+      document.getElementById('pb-bar').style.width = '0%';
+      document.getElementById('pb-counter').textContent = 'DEMO';
+    }
+
+    // --- Cards ---
+    renderCard('card-time', 'Time', d.timestamp_s, 's', simBadge, simLabel);
+    renderCard('card-dq', 'δq Pitch Rate', d.state?.delta_q_rads, 'rad/s', simBadge, simLabel);
+    renderCard('card-de', 'δe Elevator', d.state?.delta_e_rad, 'rad', simBadge, simLabel);
+    renderCard('card-dw', 'δw Velocity', d.state?.delta_w_mps, 'm/s', simBadge, simLabel);
+    renderCard('card-gust', 'Vertical Gust (w_gust)', (wGust !== undefined && wGust !== null) ? wGust : 0.0, 'm/s', gustBadge, gustLabel);
+    renderCard('card-lift', 'ΔLift', d.forces?.delta_Lift_N, 'N', simBadge, simLabel);
+    renderCard('card-moment', 'ΔPitch Moment', d.forces?.delta_PitchMom_Nm, 'N·m', simBadge, simLabel);
+    renderCard('card-thrust', 'Total Thrust', d.forces?.total_thrust_N, 'N', thrustBadge, thrustLabel);
+    renderCard('card-health', 'Health', d.health?.status, '', simBadge, simLabel);
+
+    // --- Charts (suppress updates when paused or completed to avoid duplicate samples) ---
+    if (!isPaused && !isCompleted) {
+      pushChart(chartDw, d.timestamp_s, d.state?.delta_w_mps);
+      pushChart(chartDq, d.timestamp_s, d.state?.delta_q_rads);
+    }
+
+  } catch (e) {
+    failCount++;
+    if (failCount > 3) {
+      document.getElementById('status-dot').className = 'w-2 h-2 rounded-full bg-red-400';
+      document.getElementById('status-text').textContent = 'DISCONNECTED';
+    }
+  }
+}
+
+// Start
+loadRuns();
+setInterval(poll, 50);
+</script>
+
+</body>
+</html>

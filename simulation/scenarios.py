@@ -737,6 +737,50 @@ def create_multisine_excitation_scenario(
     )
 
 
+def create_flight_41_gust_scenario(
+    duration_s: float = 10.0,
+    dt_s: float = 0.02,
+) -> SimulationScenario:
+    """
+    NASA_VERIFIED_REFERENCE_CONDITION + PROJECT_DEFINED control + PROJECT_DEFINED_TURBULENCE.
+
+    Response of NASA T-2 Flight 41 short-period dynamics to a Project-Defined
+    Longitudinal 1-Cosine Gust (w_gust).
+
+    Reference condition: Flight 41 identified longitudinal derivatives (AIAA 2015-2704).
+    Control input: Zero elevator input (isolates the gust-induced perturbation response).
+    Gust input: Project-Defined 1-Cosine Gust (PROJECT_DEFINED_TURBULENCE).
+    """
+    return SimulationScenario(
+        name="flight_41_gust_response_run",
+        description=(
+            "Response of NASA T-2 Flight 41 longitudinal short-period dynamics "
+            "to a Project-Defined Longitudinal 1-Cosine Gust input (PROJECT_DEFINED_TURBULENCE). "
+            "Control input is zero elevator to isolate the gust-induced perturbation response."
+        ),
+        flight_condition=FlightCondition.FLIGHT_41,
+        reference_condition_provenance=Provenance.NASA_VERIFIED_REFERENCE_CONDITION,
+        initial_state=PerturbationState(delta_w=0.0, delta_q=0.0),
+        duration_s=duration_s,
+        dt_s=dt_s,
+        control_schedule=_zero_control_schedule,
+        control_schedule_provenance=Provenance.PROJECT_DEFINED,
+        source=(
+            "AIAA 2015-2704 (Flight 41 identified derivatives) + Project-Defined "
+            "Longitudinal 1-Cosine Gust model (PROJECT_DEFINED_TURBULENCE)."
+        ),
+        assumptions=(
+            "Reference condition (V, alpha, h, throttle) and identified "
+            "longitudinal derivatives are NASA-verified per AIAA 2015-2704.",
+            "Vertical gust is a Project-Defined 1-Cosine Gust (PROJECT_DEFINED_TURBULENCE), "
+            "not a NASA aircraft data parameter.",
+            "Elevator control is zero to isolate the gust disturbance response.",
+            "Physical state space is strictly preserved as [delta_w, delta_q].",
+        ),
+        notes="Dedicated gust-response scenario evaluating w_gust(t) and delta_w_aero.",
+    )
+
+
 def get_all_scenarios() -> Tuple[SimulationScenario, ...]:
     """Convenience registry of one instance of every scenario type."""
     return (
@@ -744,5 +788,6 @@ def get_all_scenarios() -> Tuple[SimulationScenario, ...]:
         create_small_disturbance_scenario(),
         create_flight_41_scenario(),
         create_flight_15_scenario(),
+        create_flight_41_gust_scenario(),
         create_multisine_excitation_scenario(),
-    )
+    )

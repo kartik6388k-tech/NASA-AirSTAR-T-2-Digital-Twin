@@ -29,6 +29,7 @@ import yaml
 from models.aircraft import Aircraft
 from models.aerodynamics import AerodynamicsDatabase
 from models.propulsion import PropulsionModel
+from models.turbulence import LongitudinalCosineGust
 from simulation.scenarios import get_all_scenarios
 from simulation.simulator import Simulator
 
@@ -185,7 +186,19 @@ def run_scenario(
 
     # 5. Construct Simulator
     try:
-        sim = Simulator(aircraft=aircraft, flight_data=flight_data, propulsion=propulsion)
+        # Gust model is disabled by default in config.yaml to preserve baseline runs.
+        # It is activated for dedicated gust scenarios.
+        is_gust_scenario = "gust" in scenario.name.lower()
+        gust_model = LongitudinalCosineGust.from_config(
+            config,
+            enable_override=True if is_gust_scenario else None,
+        )
+        sim = Simulator(
+            aircraft=aircraft,
+            flight_data=flight_data,
+            propulsion=propulsion,
+            gust_model=gust_model if gust_model.enabled else None,
+        )
     except Exception as e:
         print(f"Error: Failed to construct Simulator: {type(e).__name__}: {e}")
         if debug:

@@ -633,6 +633,16 @@ project_defined_parameters:
     allowed_as_conceptual_reference: true
     note: "May be used for conceptual understanding of turbofan degradation modeling, but not as a source of numeric parameters for the T-2 JetCat P70 propulsion model."
 
+  longitudinal_gust:
+    provenance: "PROJECT_DEFINED_TURBULENCE"
+    name: "Project-Defined Longitudinal 1-Cosine Gust"
+    description: "Deterministic 1-cosine vertical gust input for longitudinal reduced-order short-period dynamics. PROJECT_DEFINED simulation input, not NASA aircraft data."
+    enabled: false
+    gust_amplitude_mps: 1.5
+    gust_duration_s: 1.0
+    start_time_s: 1.0
+    note: "Default is enabled: false so standard baseline runs are completely unaffected. Activated explicitly for gust-response scenarios."
+
 # Aerodynamic derivative note:
 # CL_alpha, CL_q, CL_delta_e, Cm_alpha, Cm_q, and Cm_delta_e are NOT globally
 # missing. Flight-specific estimates are stored under FLIGHT_TEST_IDENTIFIED_DATA.
