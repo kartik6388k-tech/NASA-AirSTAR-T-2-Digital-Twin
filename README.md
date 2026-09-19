@@ -193,7 +193,7 @@ The `records/` directory contains MP4 recordings of the dashboard and various Di
 
 ### 1. Environment / Aircraft Movement
 
-[▶ Watch `environment_check_movement.mp4`](records/environment_check_movement.mp4)
+[▶ Watch `enviroment_check_movement.mp4`](records/enviroment_check_movement.mp4)
 
 Demonstrates the aircraft visualization and telemetry-driven movement in the dashboard.
 
@@ -232,7 +232,7 @@ Shows the response to the project's elevator doublet excitation and the resultin
 A quick, plain-language guide if you just want the gist of each recording:
 
 - **`demo_project.mp4`** — The best starting point: an overall walkthrough of the project.
-- **`environment_check_movement.mp4`** — Shows the aircraft and dashboard responding to telemetry.
+- **`enviroment_check_movement.mp4`** — Shows the aircraft and dashboard responding to telemetry.
 - **`flight_41_gust_response.mp4`** — Shows how the aircraft responds to a simulated wind gust.
 - **`instability_response.mp4`** — Shows an oscillating, unstable response used to demonstrate dynamic behavior.
 - **`small_disturbance_free_response.mp4`** — Shows the aircraft settling back down after a small nudge, with no control input.
