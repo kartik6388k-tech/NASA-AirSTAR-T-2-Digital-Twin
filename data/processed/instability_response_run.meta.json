@@ -1,0 +1,13 @@
+{
+  "scenario_name": "instability_response_run",
+  "test_only": true,
+  "provenance": "TEST_ONLY / PROJECT_DEFINED",
+  "destabilization": {
+    "label": "instability_response_run negative pitch damping",
+    "parameter": "Mq",
+    "mq_scale": -0.75,
+    "Mq_baseline_Nm_per_rad_s": -24.763030054083643,
+    "Mq_used_Nm_per_rad_s": 18.572272540562732
+  },
+  "disclaimer": "TEST_ONLY / PROJECT_DEFINED destabilized response. Does NOT represent actual NASA T-2 flight behavior."
+}
