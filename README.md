@@ -169,45 +169,45 @@ The Flight 15 and Flight 41 reference-condition scenarios are **reference-condit
 
 ## Recorded Demonstrations
 
-The `records/` directory contains GIF recordings that demonstrate different operating cases and the corresponding Digital Twin response.
+The `records/` directory contains MP4 recordings showing the dashboard and different Digital Twin operating cases.
 
-### 1. Overall Dashboard Demonstration
+### 1. Environment / Aircraft Movement
 
-![Overall Digital Twin dashboard](records/all_around.gif)
+[▶ Watch `environment_check_movement.mp4`](records/environment_check_movement.mp4)
 
-`all_around.gif` shows the overall dashboard view and how simulation telemetry is presented through the Digital Twin interface.
+Demonstrates the aircraft visualization and telemetry-driven movement in the dashboard.
 
 ### 2. Complete Project Demonstration
 
-![Digital Twin project demonstration](records/demo_project.gif)
+[▶ Watch `demo_project.mp4`](records/demo_project.mp4)
 
-`demo_project.gif` provides a general demonstration of the project workflow and dashboard response.
+Provides an overall demonstration of the Digital Twin workflow and dashboard.
 
 ### 3. Flight 41 Gust Response
 
-![Flight 41 gust response](records/flight_41_gust_response_run.gif)
+[▶ Watch `flight_41_gust_response.mp4`](records/flight_41_gust_response.mp4)
 
-`flight_41_gust_response_run.gif` demonstrates the response of the reduced-order longitudinal model to the **project-defined 1-cosine longitudinal gust**. The gust acts through the aerodynamic relative vertical-velocity perturbation and produces a time-varying short-period response.
+Demonstrates the reduced-order longitudinal response to the project-defined 1-cosine longitudinal gust.
 
 ### 4. Instability Response
 
-![Instability response](records/instability_response_run.gif)
+[▶ Watch `instability_response.mp4`](records/instability_response.mp4)
 
-`instability_response_run.gif` is a **project-defined demonstration** of an oscillatory/unstable response. It is intended to show how the Digital Twin behaves when the selected simulation case produces a growing or sustained dynamic response. It is not presented as measured NASA T-2 flight behaviour.
+Shows a project-defined oscillatory/unstable response used to demonstrate dynamic behaviour of the Digital Twin. This is not presented as measured NASA T-2 flight behaviour.
 
 ### 5. Small-Disturbance Free Response
 
-![Small disturbance free response](records/small_disturbance_free_response.gif)
+[▶ Watch `small_disturbance_free_response.mp4`](records/small_disturbance_free_response.mp4)
 
-`small_disturbance_free_response.gif` demonstrates the natural short-period response from a project-defined initial perturbation with zero control input. This case is useful for observing the model's unforced dynamic behaviour.
+Shows the natural short-period response from a project-defined initial perturbation with zero control input.
 
 ### 6. Short-Period Doublet Response
 
-![Short-period doublet response](records/t2_short_period_doublet_response.gif)
+[▶ Watch `t2_doublet_shortperiod_response.mp4`](records/t2_doublet_shortperiod_response.mp4)
 
-`t2_short_period_doublet_response.gif` demonstrates the response to the project's elevator doublet input. It is a project-defined demonstration of how an elevator excitation produces changes in the simulated short-period states.
+Shows the response to the project's elevator doublet excitation and the resulting short-period dynamics.
 
-> **Important:** These GIFs are visual demonstrations of the current project implementation. They do not constitute reproductions of the original NASA AirSTAR flight-test recordings. The current physical model remains a reduced-order longitudinal system with state `[δw, δq]`.
+> **Note:** These MP4 files are project demonstrations of the current implementation. They are not reproductions of the original NASA AirSTAR flight-test recordings.
 
 ## NASA Data vs Project-Defined Data
 
