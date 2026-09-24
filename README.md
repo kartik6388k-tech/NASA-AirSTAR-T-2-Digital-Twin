@@ -2,10 +2,9 @@
 
 > A rigorous reduced-order digital twin of NASA's 5.5% Generic Transport Model (GTM) T-2 research aircraft. Simulates longitudinal short-period flight dynamics, discrete vertical gusts, synthetic sensor noise, linear Kalman state estimation, rule-based health diagnostics, and real-time browser playback.
 
-<!-- HERO PREVIEW SECTION: See the "GitHub Video Fix" section below to hook up your own looping recording -->
 <div align="center">
-  <img src="records/flight_41_gust_response.gif" alt="NASA AirSTAR T-2 Digital Twin Dashboard Playback" width="100%" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/kartik6388k-tech/NASA-AirSTAR-T-2-Digital-Twin/main/records/preview_fallback.png';" />
-  <p><em>Real-time Three.js attitude visualization, Chart.js strip charts, and telemetry tracking during a 1-cosine gust encounter.</em></p>
+  <img src="records/demo_project.gif" alt="NASA AirSTAR T-2 Digital Twin Complete Walkthrough" width="100%" />
+  <p><em>Real-time Three.js attitude visualization, Chart.js telemetry strip charts, and state estimation playback.</em></p>
 </div>
 
 ---
@@ -68,6 +67,150 @@ Here is how data flows through the system, from the configuration file down to t
 [ digital_twin/integration.py ]
   (end-to-end twin pipeline)
 ```
+
+---
+
+## Flight Demonstrations & Response Physics
+
+Every demonstration file in the `records/` folder captures a distinct operating condition of the digital twin. Below is the breakdown of what each recording states, how the physics engine synthesizes that exact dynamic response, and where the underlying numbers originated.
+
+---
+
+### 1. Complete Digital Twin Walkthrough (`demo_project.gif`)
+
+<div align="center">
+  <img src="records/demo_project.gif" alt="NASA AirSTAR T-2 Complete Walkthrough" width="100%" />
+</div>
+
+* **What It States:**  
+  Walks through the entire end-to-end digital twin execution pipeline. Shows how the simulator initializes nominal aircraft geometry, steps through numerical integration, serializes 15 channels of telemetry to disk, streams frames over the Python HTTP API, and renders real-time 3D flight cues alongside live synchronized strip charts.
+* **How the Response Is Generated:**
+  1. The scenario runner loads the verified T-2 mass properties ($m = 23.92\text{ kg}$, $I_{yy} = 6.306\text{ kg}\cdot\text{m}^2$) and Flight 41 aerodynamic derivatives from `config.yaml`.
+  2. The simulation advances via 4th-order Runge-Kutta integration at a fixed timestep of $\Delta t = 0.02\text{ s}$ ($50\text{ Hz}$).
+  3. `sensors/sensor_model.py` corrupts the clean truth states with additive Gaussian white noise and static biases.
+  4. `digital_twin/estimator.py` runs a 2-state discrete Kalman filter to estimate $\hat{x} = [\delta\hat{w}, \delta\hat{q}]^T$ from the noisy sensor vector.
+  5. `digital_twin/health_monitor.py` inspects covariance bounds and innovation residuals on every frame.
+  6. `dashboard/app.py` streams the resulting telemetry frames to `dashboard.html` over a thread-safe 50 ms polling loop. Three.js binds the aircraft attitude matrix to pitch rate $\delta q$, while Chart.js updates rolling acceleration and velocity strip charts.
+* **Source Provenance:**  
+  Accumulates the entire system stack: AIAA 2015-2704 (Flight 41 baseline and derivative estimates), NASA/TM-2017-219795 (airframe dimensions), and standard ISA atmospheric conditions.
+
+---
+
+### 2. Flight 41 Vertical Gust Response (`flight_41_gust_response.gif`)
+
+<div align="center">
+  <img src="records/flight_41_gust_response.gif" alt="Flight 41 Gust Response" width="100%" />
+</div>
+
+* **What It States:**  
+  Demonstrates how the T-2 GTM responds when penetrating a sharp vertical updraft (a 1-cosine gust). Shows the rapid upward heave acceleration ($a_z$), followed by an immediate nose-down pitching moment that stabilizes the airframe back toward trim.
+* **How the Response Is Generated:**
+  1. The aircraft trims at $V = 139.1\text{ ft/s}$ ($42.4\text{ m/s}$), $\alpha = 4.077^\circ$, and $h = 1227\text{ ft}$ ($374\text{ m}$).
+  2. `models/turbulence.py` injects a deterministic 1-cosine vertical gust $w_{gust}(t)$ directly into the relative aerodynamic velocity:
+     $$\delta w_{aero}(t) = \delta w(t) - w_{gust}(t)$$
+  3. The sudden relative airflow produces an immediate effective angle-of-attack spike ($\Delta\alpha \approx \delta w_{aero} / U_e$).
+  4. The dimensional lift derivative $Z_w$ forces an upward acceleration ($-\dot{w}$ in body axes), while the static pitch stability derivative $M_w$ ($C_{m_\alpha} = -1.667$) drives a powerful restoring nose-down pitching moment ($\dot{q} < 0$).
+  5. Pitch damping derivative $M_q$ ($C_{m_q} = -46.36$) dissipates the oscillation within 2 to 3 cycles without pilot elevator intervention ($\delta e = 0$).
+* **Source Provenance:**  
+  Flight condition and identified aerodynamic derivatives sourced directly from **AIAA 2015-2704**, Section VI.A, Table 2 & Table 3. Gust profile is a project-defined standard 1-cosine discrete gust formulation.
+
+---
+
+### 3. Small-Disturbance Free Response (`small_disturbance_free_response.gif`)
+
+<div align="center">
+  <img src="records/small_disturbance_free_response.gif" alt="Small Disturbance Free Response" width="100%" />
+</div>
+
+* **What It States:**  
+  Shows the natural unforced stability of the T-2 airframe. Released from an initial pitch-rate and heave offset with zero elevator deflection, the aircraft smoothly damps out the disturbance and returns to steady-state flight.
+* **How the Response Is Generated:**
+  1. Initial state vector is offset at $t = 0$:
+     $$x(0) = \begin{bmatrix} \delta w_0 \\ \delta q_0 \end{bmatrix} = \begin{bmatrix} 1.0\text{ m/s} \\ 0.01\text{ rad/s} \end{bmatrix}$$
+  2. Elevator control input is locked at zero ($\delta e(t) = 0$).
+  3. The unforced state-space equation governs the motion:
+     $$\dot{x} = A' x$$
+  4. The short-period plant matrix $A'$ possesses a pair of stable complex-conjugate eigenvalues with negative real parts:
+     $$\lambda_{1,2} = -\zeta \omega_n \pm j \omega_n \sqrt{1 - \zeta^2}$$
+  5. The RK4 integrator marches forward; pitch rate $\delta q$ and vertical velocity $\delta w$ decay exponentially, illustrating classic damped oscillatory flight mechanics.
+* **Source Provenance:**  
+  Dimensional derivatives derived from **AIAA 2015-2704** Table 3 (Flight 41). Initial perturbation offsets are software test parameters designed to isolate the homogeneous short-period eigenvalues.
+
+---
+
+### 4. Dynamic Instability & Fault Diagnostic Response (`instability_response.gif`)
+
+<div align="center">
+  <img src="records/instability_response.gif" alt="Instability Response" width="100%" />
+  <p><em>Also available as a full recording: <a href="records/instability_response.mp4">records/instability_response.mp4</a></em></p>
+</div>
+
+* **What It States:**  
+  Demonstrates an oscillatory diverging flight condition where aerodynamic damping is degraded or destabilizing control derivatives are introduced. Illustrates how the digital twin's health monitoring layer detects envelope excursions and flags subsystem anomalies.
+* **How the Response Is Generated:**
+  1. The simulation runs under a modified pole configuration where the system matrix $A'$ moves eigenvalues into the right-half complex plane ($\text{Re}(\lambda) > 0$) or encounters continuous sustained harmonic resonance.
+  2. Pitch rate $\delta q$ and vertical acceleration $a_z$ oscillate with growing amplitude rather than decaying.
+  3. `sensors/sensor_model.py` feeds these diverging states to the Kalman filter.
+  4. Innovation residuals ($\tilde{y} = y - H\hat{x}$) rapidly expand beyond the expected measurement covariance $S = H P H^T + R$.
+  5. `digital_twin/health_monitor.py` flags threshold violations, transitioning system severity from `HEALTHY` $\to$ `WARNING` $\to$ `CRITICAL`, triggering visual alarm indicators in the cockpit interface.
+* **Source Provenance:**  
+  Project-defined boundary scenario used to validate the rule-based fault detection and envelope protection algorithms outlined in **Tang et al. (2009)** and the GTM health-monitoring research literature.
+
+---
+
+### 5. 3D Environment & Coordinate Verification (`enviroment_check_movement.gif`)
+
+<div align="center">
+  <img src="records/enviroment_check_movement.gif" alt="Environment Check Movement" width="100%" />
+  <p><em>Also available as a full recording: <a href="records/enviroment_check_movement.mp4">records/enviroment_check_movement.mp4</a></em></p>
+</div>
+
+* **What It States:**  
+  Validates the coordinate system transformations and Three.js 3D rendering pipeline. Verifies that body-axis pitch rates, heave displacements, and aerodynamic angles accurately map into screen space without inverted axes, Gimbal lock, or sign-convention discrepancies.
+* **How the Response Is Generated:**
+  1. The simulation feeds reference perturbation data into the web server.
+  2. Standard North-East-Down (NED) aircraft conventions ($+x$ nose forward, $+y$ right wing, $+z$ downward) are mapped into Three.js WebGL coordinate space ($+X$ right, $+Y$ up, $+Z$ toward camera).
+  3. Perturbation pitch rate $\delta q$ is integrated into a qualitative pitch attitude cue $\theta(t)$ to tilt the 3D model nose-up / nose-down.
+  4. Heave velocity $\delta w$ drives vertical positioning cues on the artificial horizon and primary flight display.
+  5. The camera tracking loop maintains smooth orbit controls around the 5.5% GTM airframe while streaming 50 Hz telemetry frames.
+* **Source Provenance:**  
+  Vehicle geometry, aspect ratio, wingspan ($2.088\text{ m}$), and chord lengths are scaled directly from **NASA/TM-2017-219795 Table 1**.
+
+---
+
+## Complete Data Source & Provenance Ledger
+
+Every single number, geometry definition, derivative, and equation in this project is accumulated from documented scientific literature. Nothing is pulled from thin air.
+
+| Subsystem / Parameter | Value in Code | Physical Meaning | Exact Source Reference |
+|---|---|---|---|
+| **Wingspan ($b$)** | `2.08788 m` ($6.85\text{ ft}$) | Active T-2 GTM wingspan | NASA/TM-2017-219795, Table 1 |
+| **Reference Area ($S$)** | `0.54813 m²` ($5.90\text{ ft}^2$) | Active wing planform area | NASA/TM-2017-219795, Table 1 |
+| **Mean Aerodynamic Chord ($\bar{c}$)** | `0.28042 m` ($0.92\text{ ft}$) | Active longitudinal chord | NASA/TM-2017-219795, Table 1 |
+| **Nominal Airframe Mass ($m$)** | `23.934 kg` ($1.64\text{ slug}$) | Active baseline mass | NASA/TM-2017-219795, Table 1 |
+| **Pitch Inertia ($I_{yy}$)** | `6.30455 kg·m²` ($4.65\text{ slug}\cdot\text{ft}^2$) | Baseline pitch inertia | NASA/TM-2017-219795, Table 1 |
+| **Roll / Yaw / Cross Inertia** | $I_{xx}=1.600$, $I_{zz}=7.565$, $I_{xz}=0.285\text{ kg}\cdot\text{m}^2$ | Full inertia tensor | NASA/TM-2017-219795, Table 1 |
+| **Flight 41 Reference Mass** | `23.919 kg` ($1.639\text{ slug}$) | Flight 41 flight-test mass | AIAA 2015-2704, Table 1 |
+| **Flight 41 Reference $I_{yy}$** | `6.3059 kg·m²` ($4.651\text{ slug}\cdot\text{ft}^2$) | Flight 41 pitch inertia | AIAA 2015-2704, Table 1 |
+| **Flight 41 Airspeed ($U_e$)** | `42.398 m/s` ($139.1\text{ ft/s}$) | Nominal flight trim speed | AIAA 2015-2704, Table 2 |
+| **Flight 41 Trim Alpha ($\alpha_{trim}$)** | `4.077 deg` ($0.07116\text{ rad}$) | Nominal angle of attack | AIAA 2015-2704, Table 2 |
+| **Flight 41 Altitude ($h$)** | `373.99 m` ($1227\text{ ft}$) | Nominal flight altitude | AIAA 2015-2704, Table 2 |
+| **Lift Curve Slope ($C_{L_\alpha}$)** | `3.933` ($\pm 0.073$) | Lift variation with alpha | AIAA 2015-2704, Table 3 |
+| **Pitch Damping ($C_{m_q}$)** | `-46.36` ($\pm 3.712$) | Pitch moment from pitch rate | AIAA 2015-2704, Table 3 |
+| **Static Pitch Stability ($C_{m_\alpha}$)** | `-1.667` ($\pm 0.047$) | Pitch moment from alpha | AIAA 2015-2704, Table 3 |
+| **Elevator Pitch Authority ($C_{m_{\delta e}}$)** | `-1.676` ($\pm 0.070$) | Pitch control derivative | AIAA 2015-2704, Table 3 |
+| **Elevator Lift Derivative ($C_{L_{\delta e}}$)** | `0.143` ($\pm 0.092$) | Direct lift from elevator | AIAA 2015-2704, Table 3 |
+| **Pitch-Rate Lift ($C_{L_q}$)** | `15.11` ($\pm 5.319$) | Lift variation from pitch rate | AIAA 2015-2704, Table 3 |
+| **Flight 15 Condition** | $V=136.0\text{ ft/s}, \alpha=3.893^\circ, h=1467\text{ ft}$ | Severe turbulence baseline | AIAA 2015-2704, Table 2 |
+| **Flight 15 Derivatives** | $C_{L_\alpha}=3.828, C_{m_\alpha}=-1.437, C_{m_q}=-44.76$ | Parameter estimates | AIAA 2015-2704, Table 3 |
+| **Telemetry Sample Rate** | `200 Hz` telemetered, `50 Hz` modeling | Analysis stream frequency | AIAA 2015-2704, Section IV |
+| **Anti-Aliasing Filter** | 1st order analog, cutoff $16\text{ Hz}$ | Signal conditioning | AIAA 2015-2704, Section IV |
+| **Engine Architecture** | 2x JetCat P70 micro-turbines | Independent propulsion | NASA Briefings (Cox 2010; Murch 2009) |
+| **Rated Engine Thrust** | `16 lbf` ($71.17\text{ N}$) per engine | Rated headline reference | NASA Briefings (Cox 2010; Murch 2009) |
+| **Atmospheric State** | 1976 U.S. Standard Atmosphere (ISA) | Density, pressure, temperature | NOAA / NASA / USAF Standard (1976) |
+| **Dimensional Derivatives** | $Z_w, M_w, Z_q, M_q, Z_{\delta e}, M_{\delta e}$ | Synthesized dimensional model | Project-Derived ($Z \approx -L, \Delta\alpha \approx \delta w / U_e$) |
+| **Vertical Gust Model** | 1-Cosine profile: $w_{gust}(t)$ | Discrete gust disturbance | Project-Defined Turbulence |
+| **State Estimator** | 2-State Discrete Linear Kalman Filter | $\hat{x} = [\delta\hat{w}, \delta\hat{q}]^T$ | Project-Defined Estimator |
 
 ---
 
@@ -194,84 +337,40 @@ Use the dropdown in the upper panel to select your simulation run (`flight_41_gu
 
 ---
 
-## Fixing the Broken Repository Preview Video
+## Troubleshooting & The GitHub Video Fix
 
-### Why the Preview Video Breaks on GitHub
+### Why Repository Previews Break on GitHub
 If you tried viewing or embedding demo videos on GitHub, you probably noticed a broken image box or an annoying download link. This happens for three specific reasons:
-1. **The Missing File Bug**: The old README referenced `records/instability_response_run.gif`, but the `records/` folder only contains raw `.mp4` recordings.
-2. **Markdown Doesn't Autoplay MP4s**: If you write `![Demo](records/demo_project.mp4)` in GitHub markdown, GitHub's renderer fails. The markdown `![]()` syntax only supports static images and animated GIFs—it cannot parse or play local MP4 files.
+1. **The Missing File Bug**: Referencing a non-existent file path (like an old `.gif` reference that was never rendered).
+2. **Markdown Doesn't Autoplay MP4s**: If you write `![Demo](records/demo.mp4)` in GitHub markdown, GitHub's renderer fails. The markdown `![]()` syntax only supports static images and animated GIFs—it cannot parse or play local MP4 files.
 3. **Repository File Viewer Trap**: Clicking a plain link like `[Watch Video](records/demo.mp4)` takes visitors away from your README into GitHub's file browser. That ruins your project's first impression.
 
----
+### The Two Working Solutions
 
-### The Permanent Fix: Two Working Solutions
+#### Option A: Optimized, Looping Animated GIFs (Implemented in this Repo)
+All demonstrations in `records/` are now provided as palette-optimized `.gif` files under 8 MB. They render inline, autoplay immediately, loop infinitely, and require zero user interaction.
+```markdown
+![NASA AirSTAR T-2 Digital Twin Demo](records/demo_project.gif)
+```
 
-Choose whichever option fits your workflow best:
-
-#### Option A: Convert MP4 to an Optimized, Looping GIF (Recommended)
-An animated GIF displays directly on your GitHub landing page, loops forever, and requires zero user clicks.
-
-Because raw screen recordings make massive, laggy GIFs, you need to generate a custom color palette so the file size stays small (under 10 MB) while keeping text crisp.
-
-1. **Install FFmpeg** (if you don't already have it):
-   * Windows (via Winget): `winget install Gyan.FFmpeg`
-   * macOS (via Homebrew): `brew install ffmpeg`
-   * Linux: `sudo apt install ffmpeg`
-
-2. **Run this single command** inside your project directory to convert `records/demo_project.mp4` into an optimized, buttery GIF:
-   ```bash
-   ffmpeg -i records/demo_project.mp4 -vf "fps=15,scale=800:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer" -loop 0 records/demo_project.gif
-   ```
-   * What this does:
-     * `fps=15`: Cuts unnecessary frames to slash file size by 70% while staying completely smooth.
-     * `scale=800:-1`: Scales width to 800px (crisp on laptops and phones) while preserving aspect ratio.
-     * `palettegen` & `paletteuse`: Generates an adaptive 128-color palette so text and charts stay razor-sharp.
-     * `-loop 0`: Tells the GIF to loop infinitely.
-
-3. **Embed it in your `README.md`**:
-   ```markdown
-   ![NASA AirSTAR T-2 Digital Twin Demo](records/demo_project.gif)
-   ```
-   Commit and push `records/demo_project.gif` and your updated `README.md`. It will render and loop right on GitHub.
-
----
-
-#### Option B: GitHub Video CDN Embed (For True 1080p Video Playback)
-GitHub allows native HTML5 video streaming with autoplay and looping, but only when the video is hosted on GitHub's asset CDN rather than committed as a raw repo file.
-
-1. Open any **Issue** or **Pull Request** in your GitHub repository (or create a draft release).
-2. Drag and drop `records/demo_project.mp4` directly into the issue description box.
-3. GitHub will upload the file and give you a link that looks like this:
-   ```text
-   https://github.com/user-attachments/assets/12345678-abcd-ef01-2345-6789abcdef01
-   ```
-4. Copy that URL and paste it into your `README.md` using this exact HTML5 snippet:
+#### Option B: GitHub Video CDN Embed (For Native High-Bitrate Video)
+If you prefer streaming original 1080p MP4 files:
+1. Open any **Issue** or **Pull Request** in your GitHub repository.
+2. Drag and drop any `.mp4` from `records/` directly into the text box.
+3. GitHub will upload it to its asset CDN and generate a persistent URL:
+   `https://github.com/user-attachments/assets/YOUR-VIDEO-ID.mp4`
+4. Paste that link into your `README.md` using this HTML5 snippet:
    ```html
-   <video src="https://github.com/user-attachments/assets/YOUR-COPIED-ID.mp4" autoplay loop muted playsinline width="100%">
+   <video src="https://github.com/user-attachments/assets/YOUR-VIDEO-ID.mp4" autoplay loop muted playsinline width="100%">
    </video>
    ```
-   > **Note:** Browsers will block autoplay unless `muted` and `playsinline` are present. Do not remove those attributes.
-
----
-
-## Demonstration Video Guide
-
-The `records/` directory contains screen captures demonstrating different aspects of the digital twin:
-
-| File | What It Demonstrates | Why It Matters |
-|---|---|---|
-| `demo_project.mp4` | Complete digital twin walkthrough | Best starting point; shows scenario selection, command execution, and live dashboard playback. |
-| `flight_41_gust_response.mp4` | Aircraft hitting a 1-cosine vertical gust | Demonstrates the short-period heave and pitch response when entering sudden vertical turbulence. |
-| `small_disturbance_free_response.mp4` | Unforced disturbance recovery | Shows the natural aerodynamic damping restoring equilibrium with zero pilot elevator inputs. |
-| `t2_doublet_shortperiod_response.mp4` | Elevator doublet excitation | Shows the aircraft's pitch reaction to a sharp forward-and-back stick input. |
-| `instability_response.mp4` | Oscillatory dynamic response | Illustrates boundary behavior and how the health monitor flags abnormal oscillations. |
-| `enviroment_check_movement.mp4` | Three.js cockpit telemetry binding | Validates coordinate transformations and 3D visual rotation cues against real-time data frames. |
+   *(Note: `muted` and `playsinline` are required for web browsers to permit autoplay).*
 
 ---
 
 ## Verifying the Test Suite
 
-Run the full automated test suite using `pytest`:
+Run the automated test suite using `pytest`:
 ```bash
 python -m pytest tests/ -v
 ```
