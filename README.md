@@ -337,37 +337,6 @@ Use the dropdown in the upper panel to select your simulation run (`flight_41_gu
 
 ---
 
-## Troubleshooting & The GitHub Video Fix
-
-### Why Repository Previews Break on GitHub
-If you tried viewing or embedding demo videos on GitHub, you probably noticed a broken image box or an annoying download link. This happens for three specific reasons:
-1. **The Missing File Bug**: Referencing a non-existent file path (like an old `.gif` reference that was never rendered).
-2. **Markdown Doesn't Autoplay MP4s**: If you write `![Demo](records/demo.mp4)` in GitHub markdown, GitHub's renderer fails. The markdown `![]()` syntax only supports static images and animated GIFs—it cannot parse or play local MP4 files.
-3. **Repository File Viewer Trap**: Clicking a plain link like `[Watch Video](records/demo.mp4)` takes visitors away from your README into GitHub's file browser. That ruins your project's first impression.
-
-### The Two Working Solutions
-
-#### Option A: Optimized, Looping Animated GIFs (Implemented in this Repo)
-All demonstrations in `records/` are now provided as palette-optimized `.gif` files under 8 MB. They render inline, autoplay immediately, loop infinitely, and require zero user interaction.
-```markdown
-![NASA AirSTAR T-2 Digital Twin Demo](records/demo_project.gif)
-```
-
-#### Option B: GitHub Video CDN Embed (For Native High-Bitrate Video)
-If you prefer streaming original 1080p MP4 files:
-1. Open any **Issue** or **Pull Request** in your GitHub repository.
-2. Drag and drop any `.mp4` from `records/` directly into the text box.
-3. GitHub will upload it to its asset CDN and generate a persistent URL:
-   `https://github.com/user-attachments/assets/YOUR-VIDEO-ID.mp4`
-4. Paste that link into your `README.md` using this HTML5 snippet:
-   ```html
-   <video src="https://github.com/user-attachments/assets/YOUR-VIDEO-ID.mp4" autoplay loop muted playsinline width="100%">
-   </video>
-   ```
-   *(Note: `muted` and `playsinline` are required for web browsers to permit autoplay).*
-
----
-
 ## Verifying the Test Suite
 
 Run the automated test suite using `pytest`:
