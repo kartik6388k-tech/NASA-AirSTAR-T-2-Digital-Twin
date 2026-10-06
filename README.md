@@ -27,11 +27,11 @@ $$x = \begin{bmatrix} \delta w \\ \delta q \end{bmatrix}$$
 Around this core dynamic model, the codebase wraps a complete digital twin stack: atmospheric modeling, dimensional derivative conversion, Runge-Kutta 4th order (RK4) numerical integration, synthetic sensor corruption, a discrete linear Kalman filter, automated health monitoring, and a local web dashboard powered by Three.js and Chart.js.
 
 ---
-## Architectural Pipeline
+## System Architecture Mindmap
 
-An interactive system architecture diagram detailing data flow—from `config.yaml` parameters down to the web browser telemetry stream—is available in [`system_architecture_infographic.html`](./system_architecture_infographic.html).
+[![System Architecture Mindmap](./records/system_architecture_mindmap.png)](./system_architecture_infographic.html)
 
-![System Architecture Infographic](./system_architecture_infographic.html)
+> *Click the image above to open the full interactive infographic ([`system_architecture_infographic.html`](./system_architecture_infographic.html)).*
 
 ---
 
