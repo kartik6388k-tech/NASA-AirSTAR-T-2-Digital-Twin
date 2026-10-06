@@ -26,15 +26,6 @@ $$x = \begin{bmatrix} \delta w \\ \delta q \end{bmatrix}$$
 
 Around this core dynamic model, the codebase wraps a complete digital twin stack: atmospheric modeling, dimensional derivative conversion, Runge-Kutta 4th order (RK4) numerical integration, synthetic sensor corruption, a discrete linear Kalman filter, automated health monitoring, and a local web dashboard powered by Three.js and Chart.js.
 
----
-## System Architecture Mindmap
-
-[![System Architecture Mindmap](./records/system_architecture_mindmap.png)](./system_architecture_infographic.html)
-
-> *Click the image above to open the full interactive infographic ([`system_architecture_infographic.html`](./system_architecture_infographic.html)).*
-
----
-
 ## Flight Demonstrations & Response Physics
 
 Every demonstration file in the `records/` folder captures a distinct operating condition of the digital twin. Below is the breakdown of what each recording states, how the physics engine synthesizes that exact dynamic response, and where the underlying numbers originated.
