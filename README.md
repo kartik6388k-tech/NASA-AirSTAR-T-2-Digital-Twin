@@ -27,46 +27,11 @@ $$x = \begin{bmatrix} \delta w \\ \delta q \end{bmatrix}$$
 Around this core dynamic model, the codebase wraps a complete digital twin stack: atmospheric modeling, dimensional derivative conversion, Runge-Kutta 4th order (RK4) numerical integration, synthetic sensor corruption, a discrete linear Kalman filter, automated health monitoring, and a local web dashboard powered by Three.js and Chart.js.
 
 ---
-
 ## Architectural Pipeline
 
-Here is how data flows through the system, from the configuration file down to the browser pixels:
+An interactive system architecture diagram detailing data flow—from `config.yaml` parameters down to the web browser telemetry stream—is available in [`system_architecture_infographic.html`](./system_architecture_infographic.html).
 
-```
-[ config.yaml ] ──────────────────────────────────────────────┐
-       │                                                      │
-       ▼                                                      ▼
-[ models/aircraft.py ] & [ models/atmosphere.py ]    [ models/propulsion.py ]
-       │                                                      │
-       ▼                                                      │
-[ models/aerodynamics.py ]                                    │
-       │ (nondimensional CL, Cm derivatives)                  │
-       ▼                                                      │
-[ models/conversion.py ]                                      │
-       │ (synthesized dimensional Zw, Mw, Zq, Mq derivatives) │
-       ▼                                                      │
-[ models/flight_dynamics.py ] ◄── [ models/turbulence.py ]     │
-       │ (state derivatives dx/dt)        (1-cosine gust)     │
-       ▼                                                      │
-[ simulation/simulator.py ] ◄─────────────────────────────────┘
-       │ (RK4 integration loop + diagnostic thrust/forces)
-       ▼
- [ Telemetry CSV History ] (data/processed/)
-       │
-       ├─────────────────────────────────────────┐
-       ▼                                         ▼
-[ sensors/sensor_model.py ]              [ dashboard/app.py ]
-       │ (adds bias + Gaussian noise)            │ (HTTP & JSON API)
-       ▼                                         ▼
-[ digital_twin/estimator.py ]            [ dashboard/dashboard.html ]
-       │ (2-state Kalman filter x_hat)          (3D plane + live strip charts)
-       ▼
-[ digital_twin/health_monitor.py ]
-       │ (residual & covariance anomaly flags)
-       ▼
-[ digital_twin/integration.py ]
-  (end-to-end twin pipeline)
-```
+![System Architecture Infographic](./system_architecture_infographic.html)
 
 ---
 
